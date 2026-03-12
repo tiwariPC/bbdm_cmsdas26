@@ -1,0 +1,22 @@
+# bbDM CMS DAS 2026 — Python dependencies
+# Install: pip install -r requirements.txt
+
+coffea>=0.7
+matplotlib>=3.3
+hist>=2.0
+uproot>=4.0
+numpy>=1.18
+awkward>=1.0
+
+# For Jupyter kernel registration (so the venv appears in SWAN / JupyterLab)
+ipykernel>=6.0
+
+# Session 4: fitting, goodness of fit, limit calculation
+scipy>=1.6
+
+# Optional: pyhf for histogram fitting and limits (Session 4)
+# pyhf>=0.7
+
+# Optional: remote EOS access and distributed processing
+# coffea[dask]
+# xrootd

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# IDE / OS
+.DS_Store
+.idea/
+*.swp
+*.swo
+
+# Local / secrets
+*.local
+.env.local
