@@ -8,9 +8,10 @@ Dataset dirs are discovered by listing subdirs of PATH_2017.
 """
 
 import os
+import random
 from pathlib import Path
 
-BASE_PATH = "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026"
+BASE_PATH = "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017"
 YEAR = 2017
 PATH_2017 = os.path.join(BASE_PATH, "2017")
 
@@ -116,21 +117,17 @@ def get_filesets_grouped(full=False, max_files_per_dataset=None):
 
 def get_one_file_per_group(full=False):
     """
-    For one-file mode: return one file from "data" and one from first background.
-    Convenience for notebooks: {"data": [path], "background": [path]}.
+    For one-file / mode 1: return one file chosen at random from data and one from background.
+    Returns {"data": [path], "background": [path]} for notebooks.
     """
     grouped = get_filesets_grouped(full=False, max_files_per_dataset=1)
     if not grouped:
         return {}
     out = {}
     if "data" in grouped and grouped["data"]:
-        out["data"] = grouped["data"][:1]
-    # One background: prefer ttbar if present
-    for key in ("ttbar", "Zvv", "Wjets", "DY", "QCD"):
-        if key in grouped and grouped[key]:
-            out["background"] = grouped[key][:1]
-            break
-    if "background" not in out and grouped:
-        first_key = next(k for k in grouped if k != "data")
-        out["background"] = grouped[first_key][:1]
+        out["data"] = [random.choice(grouped["data"])]
+    # One background file chosen at random from any background dataset
+    bg_files = [f for k in grouped if k != "data" for f in grouped[k]]
+    if bg_files:
+        out["background"] = [random.choice(bg_files)]
     return out

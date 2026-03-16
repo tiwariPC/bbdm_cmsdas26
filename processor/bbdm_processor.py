@@ -11,14 +11,50 @@ import numpy as np
 import awkward as ak
 from coffea import processor
 from coffea.processor import dict_accumulator, defaultdict_accumulator
-from coffea.nanoevents import NanoEventsFactory, BaseSchema
-import hist
+from coffea.nanoevents import NanoEventsFactory, NanoAODSchema
 from hist import Hist, axis
 
+NanoAODSchema.warn_missing_crossrefs = False
 
-def get_nanoevents(filepath, schemaclass=BaseSchema):
+
+def get_nanoevents(filepath, schemaclass=NanoAODSchema):
     """Load NanoAOD file into Coffea NanoEvents."""
-    return NanoEventsFactory.from_root(filepath, schemaclass=schemaclass).events()
+    return NanoEventsFactory.from_root(
+        {filepath: "Events"},
+        schemaclass=schemaclass,
+        metadata={"dataset": "nanoaod"},
+        mode="eager",
+    ).events()
+
+
+class HistAccumulator(processor.AccumulatorABC):
+    """
+    Wrap a `hist.Hist` so it can live inside `dict_accumulator`.
+
+    `coffea.processor.dict_accumulator` expects values that implement the
+    `AccumulatorABC` interface (`identity()` + in-place `add()`).
+    """
+
+    def __init__(self, hist_obj: Hist):
+        self._hist = hist_obj
+
+    def identity(self):
+        h = self._hist.copy()
+        # Zero all bins (including flow bins) for a clean identity
+        h.view(flow=True)[...] = 0
+        return HistAccumulator(h)
+
+    def add(self, other):
+        if not isinstance(other, HistAccumulator):
+            raise ValueError(f"Cannot add HistAccumulator with {type(other)}")
+        self._hist += other._hist
+
+    def __getattr__(self, name):
+        # Delegate common hist API (e.g. .fill, .plot, .axes, .values)
+        return getattr(self._hist, name)
+
+    def __repr__(self):
+        return f"HistAccumulator({self._hist!r})"
 
 
 # -----------------------------------------------------------------------------
@@ -132,14 +168,13 @@ class bbDMProcessor(processor.ProcessorABC):
     def accumulator(self):
         """Initial accumulator: all histograms empty; merge-safe for chunked processing."""
         return dict_accumulator({
-            "jet_pt": self._hist_jet_pt.copy(),
-            "jet_mult": self._hist_jet_mult.copy(),
-            "bjet_mult": self._hist_bjet_mult.copy(),
-            "met": self._hist_met.copy(),
-            "met_sr": self._hist_met_sr.copy(),
-            "lead_jet_pt": self._hist_lead_jet_pt.copy(),
+            "jet_pt": HistAccumulator(self._hist_jet_pt).identity(),
+            "jet_mult": HistAccumulator(self._hist_jet_mult).identity(),
+            "bjet_mult": HistAccumulator(self._hist_bjet_mult).identity(),
+            "met": HistAccumulator(self._hist_met).identity(),
+            "met_sr": HistAccumulator(self._hist_met_sr).identity(),
+            "lead_jet_pt": HistAccumulator(self._hist_lead_jet_pt).identity(),
             "cutflow": defaultdict_accumulator(int),
-            "datasets": [],
         })
 
     def process(self, events):
@@ -148,7 +183,6 @@ class bbDMProcessor(processor.ProcessorABC):
         """
         dataset = events.metadata.get("dataset", "unknown")
         out = self.accumulator
-        out["datasets"].append(dataset)
 
         # Weights: use genWeight if present, else 1 (keep as awkward for indexing)
         weight = ak.ones_like(events.MET.pt)

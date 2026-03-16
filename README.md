@@ -29,8 +29,12 @@ bbDM_DAS_LongExercise/
 ├── run_analysis.py                      # One-file or full run (--full)
 ├── requirements.txt                     # Python dependencies
 ├── scripts/
-│   ├── setup_venv.sh                    # Create .venv and install deps
-│   └── start.sh                         # Activate venv, optional --jupyter
+│   ├── setup.sh                         # Source LCG, install deps into .local, optional --jupyter
+│   └── run_mode1_tests.py               # Mode 1 smoke test (config, run_analysis, S1–S4)
+├── tests/
+│   ├── test_mode1_config.py             # Config and file discovery
+│   ├── test_mode1_run_analysis.py       # Processor run and pkl structure
+│   └── test_mode1_notebooks.py          # Session 1–4 notebook-equivalent logic
 ├── SWAN.md                              # Running on CERN SWAN
 ├── datasets/
 │   └── dataset_guide.md                 # How to get NanoAOD samples
@@ -50,6 +54,8 @@ bbDM_DAS_LongExercise/
 - Jupyter (or JupyterLab)
 - Install dependencies:
 
+### Local or non-LCG environment
+
 ```bash
 pip install coffea matplotlib hist uproot
 ```
@@ -62,22 +68,60 @@ pip install coffea[dask] xrootd
 
 Or use the project’s **requirements.txt** and setup script (see below).
 
+### On CERN SWAN with `LCG_109_swan`
+
+When running on SWAN with the `LCG_109_swan` view, the system stack already provides recent versions of `coffea`, `awkward`, `numpy`, etc., but its `uproot` is slightly older than what Coffea expects. To work around this without touching the LCG installation:
+
+1. Source the LCG view in your SWAN terminal:
+
+```bash
+source /cvmfs/sft.cern.ch/lcg/views/LCG_109_swan/x86_64-el9-gcc13-opt/setup.sh
+cd /eos/user/<USER>/SWAN_projects/bbdm_cmsdas26
+```
+
+2. Install a newer `uproot` **into the repository-local `.local-uproot` directory** (once per user):
+
+```bash
+python -m pip install --target ./.local-uproot --no-deps 'uproot>=5.7.0'
+```
+
+3. When running Python scripts or notebooks for this exercise from the shell, prepend the repo-local `uproot` to `PYTHONPATH` so that it is found before the LCG one, while still using NumPy from the LCG stack:
+
+```bash
+PYTHONPATH="./.local-uproot:${PYTHONPATH}" python session1_intro_and_datasets.py
+```
+
+In SWAN notebooks, you can achieve the same effect by running this once in a cell at the top of the notebook:
+
+```python
+import os, sys
+repo_root = "/eos/user/<USER>/SWAN_projects/bbdm_cmsdas26"
+sys.path.insert(0, os.path.join(repo_root, ".local-uproot"))
+```
+
+After this, `import uproot` will use the repo-local version (with the `RNTuple` API Coffea expects), while `numpy` and `numba` continue to come from the `LCG_109_swan` environment.
+
 ### Using the setup script
 
-From the project root, create a virtual environment and install dependencies:
+From the project root, source the setup script (LCG + .local, no .venv):
 
 ```bash
-bash scripts/setup_venv.sh
+source scripts/setup.sh
 ```
 
-Then activate and optionally start Jupyter:
+To skip sourcing the LCG view (e.g. if SWAN already provides the stack):
 
 ```bash
-source scripts/start.sh          # activate only
-bash scripts/start.sh --jupyter  # activate and start Jupyter
+SKIP_LCG=1 source scripts/setup.sh
 ```
 
-**On CERN SWAN:** see [SWAN.md](SWAN.md) for session configuration (CPU, memory), setup steps, and kernel selection.
+To start Jupyter directly from the same environment:
+
+```bash
+bash scripts/setup.sh --jupyter
+```
+
+**On CERN SWAN:** see [SWAN.md](SWAN.md) for session configuration (CPU, memory) and SWAN-specific setup steps using `scripts/setup.sh`.
 
 ## Running the Exercise
 
@@ -91,6 +135,21 @@ Input files for 2017 are under `/eos/cms/store/group/phys_susy/sus-23-008/cmsdas
 
 - **One-file mode:** In Session 1, use the optional cell that loads one file from data and one from background via the config. You can also run: `python run_analysis.py` (one file per dataset) and inspect the output.
 - **Full analysis:** Run on all files and save merged histograms: `python run_analysis.py --full -o output_2017_full.pkl`. To run on Condor from project root: `condor_submit condor/submit_condor.sub`. See `condor/README.md`.
+
+### Testing (Mode 1)
+
+To smoke-test that **single-file mode** and the **Session 1–4 workflow** are working end-to-end (requires 2017 data at the configured path and the environment from `scripts/setup.sh`):
+
+```bash
+source scripts/setup.sh
+python scripts/run_mode1_tests.py
+```
+
+Use `--skip-run-analysis` to reuse an existing `output_2017.pkl` and only run config + notebook-equivalent steps:
+
+```bash
+python scripts/run_mode1_tests.py --skip-run-analysis
+```
 
 ## Sessions
 
