@@ -1,0 +1,15 @@
+data:
+  - name: MET_Run2017B
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017B-02Apr2020-v1/00DCCA4E-F5F1-F84D-A6EC-2956ACAB6E02.root"
+    isData: true
+
+backgrounds:
+  - name: TTToSemiLeptonic
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v2/0009B970-B9B0-E811-9F54-68B5996BD98E.root"
+    isData: false
+
+signal:
+  - name: bbDM_2HDMa_LO_5f
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/bbDM_2HDMa_LO_5f_TuneCP3_13TeV_madgraph_pythia8/0000/00000000-0000-0000-0000-000000000000.root"
+    isData: false
+

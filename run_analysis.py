@@ -32,9 +32,17 @@ def main():
     args = parser.parse_args()
 
     # Config and file discovery
-    from config.datasets_2017 import get_filesets, PATH_2017
+    from config.datasets_2017 import (
+        get_filesets,
+        get_full_filesets_from_yaml,
+        PATH_2017,
+    )
 
-    filesets = get_filesets(full=args.full, max_files_per_dataset=args.max_files)
+    # Prefer YAML if present for full analysis; fall back to dynamic discovery.
+    if args.full:
+        filesets = get_full_filesets_from_yaml()
+    else:
+        filesets = get_filesets(full=False, max_files_per_dataset=args.max_files)
     if not filesets:
         print("No files found under", PATH_2017)
         sys.exit(1)

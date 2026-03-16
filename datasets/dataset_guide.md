@@ -87,11 +87,23 @@ You need **xrootd** and **auth** (e.g. grid certificate or VOMS proxy) when read
 
 ---
 
-## 4. Small example files for the school
+## 4. Small example files and YAML configs for the school
 
 - **Option A**: Use 1–2 small NanoAOD files per process (e.g. one file of TTToSemiLeptonic, one of ZJetsToNuNu). Limit to a few thousand events per file if you pre-skim.
 - **Option B**: Pre-download a few files to a shared teaching directory and point students to local paths, e.g. `/data/bbDM_DAS/TTToSemiLeptonic_1.root`.
 - **Option C**: Use the **CMS Open Data** NanoAOD-style releases if the exercise is adapted for Open Data; check <http://opendata.cern.ch> and the corresponding NanoAOD documentation.
+
+For the **CMS DAS 2026 bbDM exercise**, two YAML configuration files in `config/` capture the concrete file choices:
+
+- `config/datasets_2017_short.yaml`: one NanoAOD file per dataset (grouped into `data`, `backgrounds`, `signal`) for the short/live exercise and notebook demonstrations.
+- `config/datasets_2017_full.yaml`: full-analysis configuration with grouped datasets, file patterns, and metadata (year, isData, labels, and placeholders for cross sections and sum of weights).
+
+The helper functions in `config/datasets_2017.py` read these YAML files and expose convenient accessors:
+
+- `load_live_datasets()` and `get_one_file_per_group_from_yaml()` – used in Session 1–2 to pick a single data and background file for quick exploration.
+- `load_full_datasets()` and `get_full_filesets_from_yaml()` – used by `run_analysis.py` and tests to build full filesets for the 2017 analysis.
+
+Instructors can update the **exact file paths or add/remove datasets** by editing these YAML files without touching the Python code.
 
 Always document in the notebook or README:
 - The exact dataset name or file list used

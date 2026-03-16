@@ -10,6 +10,9 @@ Dataset dirs are discovered by listing subdirs of PATH_2017.
 import os
 import random
 from pathlib import Path
+from typing import Any, Dict, List
+
+import yaml
 
 BASE_PATH = "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017"
 YEAR = 2017
@@ -131,3 +134,106 @@ def get_one_file_per_group(full=False):
     if bg_files:
         out["background"] = [random.choice(bg_files)]
     return out
+
+
+# YAML-based configuration ----------------------------------------------------
+
+SHORT_YAML = os.path.join(os.path.dirname(__file__), "datasets_2017_short.yaml")
+FULL_YAML = os.path.join(os.path.dirname(__file__), "datasets_2017_full.yaml")
+
+
+def _load_yaml(path: str) -> Dict[str, Any]:
+    if not os.path.isfile(path):
+        return {}
+    with open(path, "r") as f:
+        return yaml.safe_load(f) or {}
+
+
+def load_live_datasets() -> Dict[str, List[str]]:
+    """
+    Load one-file-per-dataset config for the live exercise from YAML.
+
+    Returns dict with keys "data", "backgrounds", "signal",
+    each mapping to a list of file paths.
+    """
+    cfg = _load_yaml(SHORT_YAML)
+    out: Dict[str, List[str]] = {}
+    for group in ("data", "backgrounds", "signal"):
+        entries = cfg.get(group, []) or []
+        files: List[str] = []
+        for entry in entries:
+            path = entry.get("file")
+            if path:
+                files.append(path)
+        if files:
+            out[group] = files
+    return out
+
+
+def load_full_datasets() -> Dict[str, Dict[str, Any]]:
+    """
+    Load full-analysis dataset config from YAML.
+
+    Returns dict keyed by dataset name with fields:
+      - files: list of path or glob patterns
+      - xsec, sumw, year, isData, label
+    """
+    cfg = _load_yaml(FULL_YAML)
+    out: Dict[str, Dict[str, Any]] = {}
+    for group in ("data", "backgrounds", "signal"):
+        entries = cfg.get(group, []) or []
+        for entry in entries:
+            name = entry.get("name")
+            if not name:
+                continue
+            out[name] = {
+                "group": group,
+                "files": entry.get("files", []),
+                "xsec": entry.get("xsec"),
+                "sumw": entry.get("sumw"),
+                "year": entry.get("year"),
+                "isData": entry.get("isData", False),
+                "label": entry.get("label", name),
+            }
+    return out
+
+
+def get_one_file_per_group_from_yaml() -> Dict[str, List[str]]:
+    """
+    Convenience wrapper for notebooks: use live YAML if present,
+    otherwise fall back to dynamic discovery.
+    """
+    live = load_live_datasets()
+    if live:
+        out: Dict[str, List[str]] = {}
+        if "data" in live and live["data"]:
+            out["data"] = [live["data"][0]]
+        # background: pick first background file from any background entry
+        bg_files = live.get("backgrounds", [])
+        if bg_files:
+            out["background"] = [bg_files[0]]
+        if out:
+            return out
+    return get_one_file_per_group()
+
+
+def get_full_filesets_from_yaml() -> Dict[str, List[str]]:
+    """
+    Build fileset dict dataset_name -> list of file paths from full YAML.
+    If YAML is missing or empty, fall back to dynamic discovery.
+    """
+    import glob
+
+    full = load_full_datasets()
+    if not full:
+        return get_filesets(full=True)
+    filesets: Dict[str, List[str]] = {}
+    for name, meta in full.items():
+        files: List[str] = []
+        for pattern in meta.get("files", []):
+            files.extend(sorted(glob.glob(pattern)))
+        if files:
+            filesets[name] = files
+    if not filesets:
+        return get_filesets(full=True)
+    return filesets
