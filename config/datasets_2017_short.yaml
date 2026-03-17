@@ -13,34 +13,42 @@ backgrounds:
     file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/DYJetsToLL_M-50_HT-400to600_TuneCP5_13TeV-madgraphMLM-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/0288E440-0142-E811-8933-0CC47A7C3638.root"
     isData: false
     label: "Z(ll)+jets "
+    xsec: 6.982
   - name: ZJets
     file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-400To600_13TeV-madgraph-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/084C97E6-868F-E811-815E-FA163E3EF566.root"
     isData: false
     label: "Z(#nu#nu)+jets "
+    xsec: 13.11
   - name: WJets
     file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WJetsToLNu_HT-400To600_TuneCP5_13TeV-madgraphMLM-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/0209439B-D65A-E811-8708-A4BF01125A90.root"
     isData: false
     label: "W(l#nu)+jets "
+    xsec: 57.91
   - name: DIBOSON
     file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WW_TuneCP5_13TeV-pythia8/2CBB934D-EA44-E811-AEA4-0CC47A4D7600.root"
     isData: false
     label: "WW "
+    xsec: 77.9187
   - name: STop
     file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ST_t-channel_top_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/1222E888-E643-E811-A547-002481DE4932.root"
     isData: false
     label: "Single t "
+    xsec: 136.02
   - name: Top
     file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v2/0009B970-B9B0-E811-9F54-68B5996BD98E.root"
     isData: false
     label: "t#bar{t} "
+    xsec: 365.2482
   - name: QCD
     file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT1000to1500_TuneCP5_13TeV-madgraph-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/025A20BB-3F44-E811-B29C-0CC47A4C8E3C.root"
     isData: false
     label: "QCD "
+    xsec: 1094
   - name: SMH
     file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ttHTobb_M125_TuneCP5_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/08F689D4-B242-E811-89ED-6CC2173D44D0.root"
     isData: false
     label: "SMH "
+    xsec: null
 
 signal:
   - name: bbDM_2HDMa_LO_5f

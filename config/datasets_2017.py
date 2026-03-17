@@ -249,6 +249,40 @@ def get_short_fileset_and_labels() -> tuple:
     return fileset, labels
 
 
+def get_short_datasets_meta() -> Dict[str, Dict[str, Any]]:
+    """
+    Session 3 helper: load short YAML and return per-dataset metadata.
+
+    Returns dict: name -> {files: [path], label: str, xsec: float|None, isData: bool}
+    """
+    cfg = _load_yaml(SHORT_YAML)
+    default_labels = {
+        "DYJets": "Z(ll)+jets ",
+        "ZJets": "Z(#nu#nu)+jets ",
+        "WJets": "W(l#nu)+jets ",
+        "DIBOSON": "WW/WZ/ZZ ",
+        "STop": "Single t ",
+        "Top": "t#bar{t} ",
+        "QCD": "QCD ",
+        "SMH": "SMH ",
+    }
+    out: Dict[str, Dict[str, Any]] = {}
+    for group in ("data", "backgrounds", "signal"):
+        entries = cfg.get(group, []) or []
+        for entry in entries:
+            name = entry.get("name")
+            path = entry.get("file")
+            if not name or not path:
+                continue
+            out[name] = {
+                "files": [path],
+                "label": entry.get("label") or default_labels.get(name, name),
+                "xsec": entry.get("xsec"),
+                "isData": bool(entry.get("isData", False)),
+            }
+    return out
+
+
 def get_full_filesets_from_yaml() -> Dict[str, List[str]]:
     """
     Build fileset dict dataset_name -> list of file paths from full YAML.

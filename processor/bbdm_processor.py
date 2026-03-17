@@ -77,6 +77,16 @@ def select_good_jets(events):
     return jets[mask]
 
 
+def min_dphi_jets_met(jets, met_phi):
+    """
+    Minimum Δφ between any selected jet and MET direction (per event).
+    Returns array of shape (nEvents,).
+    """
+    dphi = np.abs(jets.phi - met_phi)
+    dphi = ak.where(dphi > np.pi, 2 * np.pi - dphi, dphi)
+    return ak.min(dphi, axis=1)
+
+
 def count_bjets(jets, wp=BTAG_WP_MEDIUM):
     """Count jets passing b-tag working point (DeepFlavB)."""
     return ak.sum(jets.btagDeepFlavB > wp, axis=1)
@@ -204,6 +214,8 @@ class bbDMProcessor(processor.ProcessorABC):
         nbjets = count_bjets(good_jets, self.btag_wp)
         nlep = n_tight_leptons(events)
         met = events.MET.pt
+        met_phi = events.MET.phi
+        min_dphi = min_dphi_jets_met(good_jets, met_phi)
 
         # ----- Pre-selection: at least one jet (for plots) -----
         presel = njets >= 1
@@ -224,7 +236,8 @@ class bbDMProcessor(processor.ProcessorABC):
             (njets >= 1) &
             (nbjets >= 2) &
             (nlep == 0) &
-            (met > self.met_sr_min)
+            (met > self.met_sr_min) &
+            (min_dphi > 0.5)
         )
         w_sr = weight[sr]
         out["cutflow"]["signal_region"] += int(ak.sum(sr))
