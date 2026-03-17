@@ -18,13 +18,8 @@ NanoAODSchema.warn_missing_crossrefs = False
 
 
 def get_nanoevents(filepath, schemaclass=NanoAODSchema):
-    """Load NanoAOD file into Coffea NanoEvents."""
-    return NanoEventsFactory.from_root(
-        {filepath: "Events"},
-        schemaclass=schemaclass,
-        metadata={"dataset": "nanoaod"},
-        mode="eager",
-    ).events()
+    """Load one NanoAOD file and return events (same pattern as Session 1 load_events)."""
+    return NanoEventsFactory.from_root(filepath, schemaclass=schemaclass).events()
 
 
 class HistAccumulator(processor.AccumulatorABC):
@@ -115,6 +110,20 @@ def n_tight_leptons(events):
     nele = ak.count(select_tight_electrons(events).pt, axis=1)
     nmu = ak.count(select_tight_muons(events).pt, axis=1)
     return nele + nmu
+
+
+def recoil_pt(met_pt, met_phi, sum_lep_px, sum_lep_py):
+    """
+    Recoil magnitude (control-region variable): U = -(pTmiss + sum(lep)).
+    Returns |U| in GeV (same shape as inputs). All inputs per event.
+    """
+    met_x = ak.to_numpy(met_pt) * np.cos(ak.to_numpy(met_phi))
+    met_y = ak.to_numpy(met_pt) * np.sin(ak.to_numpy(met_phi))
+    px = ak.to_numpy(sum_lep_px)
+    py = ak.to_numpy(sum_lep_py)
+    u_x = -(met_x + px)
+    u_y = -(met_y + py)
+    return ak.Array(np.sqrt(u_x**2 + u_y**2))
 
 
 class bbDMProcessor(processor.ProcessorABC):

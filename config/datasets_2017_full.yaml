@@ -13,16 +13,29 @@ data:
     label: "Data MET 2017"
 
 backgrounds:
-  - name: TTbar
+  - name: DYJets
     files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTTo2L2Nu_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTToHadronic_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v2/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/DYJetsToLL_M-50_HT-*/**/*.root"
     xsec: null
     sumw: null
     year: 2017
     isData: false
-    label: "t#bar{t}"
+    label: "Z(ll)+jets "
+
+  - name: ZJets
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-100To200_13TeV-madgraph-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-200To400_13TeV-madgraph-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-400To600_13TeV-madgraph-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-600To800_13TeV-madgraph-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-800To1200_13TeV-madgraph-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-1200To2500_13TeV-madgraph-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-2500ToInf_13TeV-madgraph-*/**/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: false
+    label: "Z(#nu#nu)+jets "
 
   - name: WJets
     files:
@@ -38,22 +51,39 @@ backgrounds:
     sumw: null
     year: 2017
     isData: false
-    label: "W+jets"
+    label: "W(l#nu)+jets "
 
-  - name: Zvv
+  - name: DIBOSON
     files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-100To200_13TeV-madgraph-*/**/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-200To400_13TeV-madgraph-*/**/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-400To600_13TeV-madgraph-*/**/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-600To800_13TeV-madgraph-*/**/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-800To1200_13TeV-madgraph-*/**/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-1200To2500_13TeV-madgraph-*/**/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-2500ToInf_13TeV-madgraph-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WW*RunIIFall17NanoAOD-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WZ*RunIIFall17NanoAOD-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZZ*RunIIFall17NanoAOD-*/**/*.root"
+
     xsec: null
     sumw: null
     year: 2017
     isData: false
-    label: "Z(#nu#nu)+jets"
+    label: "WW/WZ/ZZ "
+
+  - name: STop
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ST_*-*RunIIFall17NanoAOD-*/**/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: false
+    label: "Single t "
+
+  - name: Top
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTTo2L2Nu_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTToHadronic_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v2/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: false
+    label: "t#bar{t} "
 
   - name: QCD
     files:
@@ -69,7 +99,16 @@ backgrounds:
     sumw: null
     year: 2017
     isData: false
-    label: "QCD multijet"
+    label: "QCD "
+
+  - name: SMH
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ttHTobb_M125_TuneCP5_13TeV-powheg-pythia8-*/**/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: false
+    label: "SMH "
 
 signal:
   - name: bbDM_2HDMa_LO_5f
@@ -80,4 +119,3 @@ signal:
     year: 2017
     isData: false
     label: "bbDM (2HDM+a)"
-

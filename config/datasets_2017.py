@@ -217,6 +217,38 @@ def get_one_file_per_group_from_yaml() -> Dict[str, List[str]]:
     return get_one_file_per_group()
 
 
+def get_short_fileset_and_labels() -> tuple:
+    """
+    Load one-file-per-dataset from short YAML for Session 3.
+    Returns (fileset, labels):
+      - fileset: dict name -> [path] for "data" and each background (and optionally signal).
+      - labels: dict name -> display label for plots/legends (from YAML or built-in).
+    """
+    cfg = _load_yaml(SHORT_YAML)
+    default_labels = {
+        "DYJets": "Z(ll)+jets ",
+        "ZJets": "Z(#nu#nu)+jets ",
+        "WJets": "W(l#nu)+jets ",
+        "DIBOSON": "WW/WZ/ZZ ",
+        "STop": "Single t ",
+        "Top": "t#bar{t} ",
+        "QCD": "QCD ",
+        "SMH": "SMH ",
+    }
+    fileset: Dict[str, List[str]] = {}
+    labels: Dict[str, str] = {}
+    for group in ("data", "backgrounds", "signal"):
+        entries = cfg.get(group, []) or []
+        for entry in entries:
+            name = entry.get("name")
+            path = entry.get("file")
+            if not name or not path:
+                continue
+            fileset[name] = [path]
+            labels[name] = entry.get("label") or default_labels.get(name, name)
+    return fileset, labels
+
+
 def get_full_filesets_from_yaml() -> Dict[str, List[str]]:
     """
     Build fileset dict dataset_name -> list of file paths from full YAML.

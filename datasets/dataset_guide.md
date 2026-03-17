@@ -105,6 +105,8 @@ The helper functions in `config/datasets_2017.py` read these YAML files and expo
 
 Instructors can update the **exact file paths or add/remove datasets** by editing these YAML files without touching the Python code.
 
+**Session 3 (signal region and control regions):** Session 3 uses **one file per background** (DYJets, ZJets, WJets, DIBOSON, STop, Top, QCD, SMH) and **one MET data file** from `config/datasets_2017_short.yaml`. The notebook loads them via `get_short_fileset_and_labels()` in `config/datasets_2017.py`, which returns a fileset (dataset name → list of one path) and display labels for plots. Plot labels in Session 3 come from this config helper / short YAML (e.g. "Z(#nu#nu)+jets ", "t#bar{t} ").
+
 Always document in the notebook or README:
 - The exact dataset name or file list used
 - The NanoAOD version (e.g. v9) and campaign (e.g. RunIISummer20UL17) so students know which branch names and IDs to use.
