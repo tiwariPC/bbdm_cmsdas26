@@ -10,7 +10,6 @@ A complete teaching package for a long exercise similar to those used in the CMS
 - **Signature**: two or more b-jets, large MET, no isolated leptons
 - **Backgrounds**: tt̄, Z→νν+jets, W+jets
 - **Audience**: PhD students or early-stage researchers (basic Python, no Coffea/NanoAOD experience)
-- **Duration**: 12 hours total (4 sessions × 3 hours)
 
 ## Folder Structure
 
@@ -48,118 +47,19 @@ bbDM_DAS_LongExercise/
 └── InstructorGuide.md                   # Teaching notes and expected results
 ```
 
-## Prerequisites
-
-- Python 3.8+
-- Jupyter (or JupyterLab)
-- Install dependencies:
-
-### Local or non-LCG environment
-
+### On Lxplus `LCG_105_swan`
 ```bash
-pip install coffea matplotlib hist uproot
+source /cvmfs/sft.cern.ch/lcg/views/LCG_105_swan/x86_64-el9-gcc13-opt/setup.sh
 ```
 
-For full Coffea + NanoAOD (optional, for real data access):
 
-```bash
-pip install coffea[dask] xrootd
-```
+### On CERN SWAN with `LCG_105a`
 
-Or use the project’s **requirements.txt** and setup script (see below).
 
-### On CERN SWAN with `LCG_109_swan`
+1. Choose `LCG_105a` when starting the SWAN session
 
-When running on SWAN with the `LCG_109_swan` view, the system stack already provides recent versions of `coffea`, `awkward`, `numpy`, etc., but its `uproot` is slightly older than what Coffea expects. To work around this without touching the LCG installation:
 
-1. Source the LCG view in your SWAN terminal:
+2. Select 4 CPUs and 16GB Memory
 
-```bash
-source /cvmfs/sft.cern.ch/lcg/views/LCG_109_swan/x86_64-el9-gcc13-opt/setup.sh
-cd /eos/user/<USER>/SWAN_projects/bbdm_cmsdas26
-```
 
-2. Install a newer `uproot` **into the repository-local `.local-uproot` directory** (once per user):
-
-```bash
-python -m pip install --target ./.local-uproot --no-deps 'uproot>=5.7.0'
-```
-
-3. When running Python scripts or notebooks for this exercise from the shell, prepend the repo-local `uproot` to `PYTHONPATH` so that it is found before the LCG one, while still using NumPy from the LCG stack:
-
-```bash
-PYTHONPATH="./.local-uproot:${PYTHONPATH}" python session1_intro_and_datasets.py
-```
-
-In SWAN notebooks, you can achieve the same effect by running this once in a cell at the top of the notebook:
-
-```python
-import os, sys
-repo_root = "/eos/user/<USER>/SWAN_projects/bbdm_cmsdas26"
-sys.path.insert(0, os.path.join(repo_root, ".local-uproot"))
-```
-
-After this, `import uproot` will use the repo-local version (with the `RNTuple` API Coffea expects), while `numpy` and `numba` continue to come from the `LCG_109_swan` environment.
-
-### Using the setup script
-
-From the project root, source the setup script (LCG + .local, no .venv):
-
-```bash
-source scripts/setup.sh
-```
-
-To skip sourcing the LCG view (e.g. if SWAN already provides the stack):
-
-```bash
-SKIP_LCG=1 source scripts/setup.sh
-```
-
-To start Jupyter directly from the same environment:
-
-```bash
-bash scripts/setup.sh --jupyter
-```
-
-**On CERN SWAN:** see [SWAN.md](SWAN.md) for session configuration (CPU, memory) and SWAN-specific setup steps using `scripts/setup.sh`.
-
-## Running the Exercise
-
-1. Start Jupyter: `jupyter notebook` or `jupyter lab`
-2. Work through the notebooks in order: Session 1 → 2 → 3 → 4
-3. Use small example NanoAOD files (see `datasets/dataset_guide.md`) or the processor on a teaching cluster
-
-### Two run modes (2017 samples)
-
-Input files for 2017 are under `/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017`. The config in `config/datasets_2017.py` discovers datasets and builds file lists.
-
-- **One-file mode:** In Session 1, use the optional cell that loads one file from data and one from background via the config. You can also run: `python run_analysis.py` (one file per dataset). Output is written to **output/** (e.g. `output/output_2017.pkl`).
-- **Full analysis:** Run from project root: `python run_analysis.py --full`. Merged histograms (including MET SR and cos θ* SR) are saved to **output/output_2017_full.pkl**. Session 4 loads from `output/` automatically. For a quick test: `python run_analysis.py --full --max-files 2`. To run on Condor: `condor_submit condor/submit_condor.sub`. See `condor/README.md`.
-
-### Testing (Mode 1)
-
-To smoke-test that **single-file mode** and the **Session 1–4 workflow** are working end-to-end (requires 2017 data at the configured path and the environment from `scripts/setup.sh`):
-
-```bash
-source scripts/setup.sh
-python scripts/run_mode1_tests.py
-```
-
-Use `--skip-run-analysis` to reuse an existing `output_2017.pkl` and only run config + notebook-equivalent steps:
-
-```bash
-python scripts/run_mode1_tests.py --skip-run-analysis
-```
-
-## Sessions
-
-| Session | Notebook | Focus |
-|---------|----------|--------|
-| 1 | `session1_intro_and_datasets.ipynb` | Dark matter motivation, CMS data formats, NanoAOD, Coffea basics, loading data, basic plots |
-| 2 | `session2_object_selection.ipynb` | Jet selection, b-tagging (DeepJet), lepton veto, event cleaning |
-| 3 | `session3_signal_region_analysis.ipynb` | Signal region definition, MET and yields, control regions, background composition |
-| 4 | `session4_systematics_fitting_limits.ipynb` | Weights and systematics, binned fit, goodness of fit, limit calculation |
-
-## License and Contact
-
-This material is intended for educational use at CMS DAS-style schools. For questions, refer to `InstructorGuide.md` or your local organisers.
+3. Click on `Start new Session`

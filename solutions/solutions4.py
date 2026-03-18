@@ -9,9 +9,12 @@
 # %%
 # Ensure project root is on sys.path (for SWAN / any kernel)
 import sys, os
+# This script is typically run from `solutions/`, so we add the repo root
+# to import the processor/config modules.
 sys.path.append("..")
 
 # Avoid recursion limit during deep pickle load (accumulator + hist)
+# (Pickled coffea accumulators can nest objects deeply.)
 try:
     sys.setrecursionlimit(8000)
 except Exception:
@@ -26,6 +29,12 @@ from scipy.stats import poisson, chi2
 import os
 
 def _load_results():
+    """Load the processor output produced by `run_analysis.py`.
+
+    We try a few common candidate paths so it works from either:
+    - repo root: `python solutions/solutions4.py`
+    - solutions dir: `cd solutions && python solutions4.py`
+    """
     candidates = [
         "output/output_2017.pkl", "output/output_2017_full.pkl",
         "output_2017.pkl", "output_2017_full.pkl",
@@ -39,14 +48,17 @@ def _load_results():
 results = _load_results()
 
 all_datasets = list(results.keys())
+# Heuristic: treat run-era datasets as "data"; everything else as MC background.
 data_datasets = [d for d in all_datasets if "Run2017" in d or "Single" in d or "MET" in d]
 bkg_datasets = [d for d in all_datasets if d not in data_datasets]
 
-# Main observable: cos(theta*) when available, else MET SR
+# Main observable: cos(theta*) when available, else MET in SR.
+# This keeps the workflow usable even if you only produced MET histograms.
 def get_main_hist(h):
     return h.get("cos_theta_star_sr") or h["met_sr"]
 
 def sum_hists(results, names):
+    """Sum per-dataset histograms into one total histogram."""
     out = None
     for n in names:
         if n not in results:
@@ -61,11 +73,13 @@ def sum_hists(results, names):
 data_hist = sum_hists(results, data_datasets)
 bkg_hist = sum_hists(results, bkg_datasets)
 if data_hist is not None:
+    # Observed counts per bin
     obs = np.asarray(data_hist.values()).flatten()
     obs = np.maximum(obs, 0)
 else:
     obs = None
 if bkg_hist is not None:
+    # Predicted background counts per bin (avoid exact zeros for stability)
     bkg = np.asarray(bkg_hist.values()).flatten()
     bkg = np.maximum(bkg, 1e-6)
     if obs is None:
@@ -81,6 +95,7 @@ print("Data sum:", obs.sum(), "Bkg sum:", bkg.sum(), "(main observable: cos_thet
 
 # %%
 def nll(scale):
+    """Poisson negative log-likelihood for a single background scale factor."""
     lam = scale * bkg
     return -np.sum(poisson.logpmf(obs.astype(int), np.maximum(lam, 1e-10)))
 
@@ -95,9 +110,11 @@ print("Total observed:", obs.sum(), "Total expected (after fit):", expected.sum(
 
 # %%
 chi2_val = np.sum((obs - expected)**2 / np.where(expected > 0, expected, 1))
+# ndof = N_bins - N_fit_parameters (here: 1 normalization parameter)
 ndof = len(obs) - 1
 pvalue = 1 - chi2.cdf(chi2_val, ndof)
 print(f"chi2 = {chi2_val:.2f}, ndof = {ndof}, p-value = {pvalue:.4f}")
+# Pulls identify bin-by-bin deviations in units of sqrt(expectation)
 pulls = (obs - expected) / np.sqrt(np.where(expected > 0, expected, 1))
 plt.figure(figsize=(8, 3))
 plt.bar(range(len(pulls)), pulls, edgecolor="black", alpha=0.7)
@@ -115,7 +132,8 @@ plt.show()
 # One-bin: observed = obs.sum(), background = expected.sum(); upper limit on signal s at 95% CL
 n_obs = int(obs.sum())
 b = expected.sum()
-# Simple approximate: s_95 such that P(n <= n_obs | b + s_95) = 0.05 (one-sided)
+# Simple approximate: scan s and find s_95 such that
+#   P(N > n_obs | b + s_95) = 0.05 (one-sided)
 from scipy.stats import poisson
 def p_exceed(s):
     return 1 - poisson.cdf(n_obs, b + s)
