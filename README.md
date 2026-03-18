@@ -133,8 +133,8 @@ bash scripts/setup.sh --jupyter
 
 Input files for 2017 are under `/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017`. The config in `config/datasets_2017.py` discovers datasets and builds file lists.
 
-- **One-file mode:** In Session 1, use the optional cell that loads one file from data and one from background via the config. You can also run: `python run_analysis.py` (one file per dataset) and inspect the output.
-- **Full analysis:** Run on all files and save merged histograms: `python run_analysis.py --full -o output_2017_full.pkl`. To run on Condor from project root: `condor_submit condor/submit_condor.sub`. See `condor/README.md`.
+- **One-file mode:** In Session 1, use the optional cell that loads one file from data and one from background via the config. You can also run: `python run_analysis.py` (one file per dataset). Output is written to **output/** (e.g. `output/output_2017.pkl`).
+- **Full analysis:** Run from project root: `python run_analysis.py --full`. Merged histograms (including MET SR and cos θ* SR) are saved to **output/output_2017_full.pkl**. Session 4 loads from `output/` automatically. For a quick test: `python run_analysis.py --full --max-files 2`. To run on Condor: `condor_submit condor/submit_condor.sub`. See `condor/README.md`.
 
 ### Testing (Mode 1)
 

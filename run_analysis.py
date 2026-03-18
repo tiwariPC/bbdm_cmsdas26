@@ -8,16 +8,17 @@ Usage:
   python run_analysis.py --full --year 2017   # full analysis, 2017
   python run_analysis.py --full -o output_2017.coffea
 
-Output is saved as a pickle or .coffea file: dict of dataset_name -> accumulator
-(histograms, cutflow). Load in a notebook to make comparison plots.
+Output is saved as a pickle in the output/ directory: dict of dataset_name -> accumulator
+(histograms, cutflow). Load in a notebook from output/output_2017.pkl or output/output_2017_full.pkl.
 """
 
 import argparse
 import os
 import sys
 
-# Project root
+# Project root and output directory
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = "output"
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
@@ -96,18 +97,19 @@ def main():
         print("No results.")
         sys.exit(1)
 
-    # Save
+    # Save to output directory
+    import pickle
+    os.makedirs(os.path.join(SCRIPT_DIR, OUTPUT_DIR), exist_ok=True)
     outfile = args.output
     if not outfile:
         outfile = f"output_{args.year}_full.pkl" if args.full else f"output_{args.year}.pkl"
     if not os.path.isabs(outfile):
-        outfile = os.path.join(SCRIPT_DIR, outfile)
+        outfile = os.path.join(SCRIPT_DIR, OUTPUT_DIR, os.path.basename(outfile))
 
-    import pickle
     with open(outfile, "wb") as f:
         pickle.dump(results, f)
     print(f"Saved to {outfile}")
-    print("Load in a notebook: results = pickle.load(open('output_2017.pkl','rb')); then results['dataset_name']['met_sr'].plot() etc.")
+    print(f"Load in a notebook: results = pickle.load(open('{outfile}','rb'))")
 
 
 if __name__ == "__main__":

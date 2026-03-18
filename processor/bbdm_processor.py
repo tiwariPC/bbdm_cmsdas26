@@ -44,6 +44,21 @@ class HistAccumulator(processor.AccumulatorABC):
             raise ValueError(f"Cannot add HistAccumulator with {type(other)}")
         self._hist += other._hist
 
+    def __add__(self, other):
+        """Support Hist + HistAccumulator and HistAccumulator + Hist for Session 4 sum_hists."""
+        from hist import Hist
+        if isinstance(other, HistAccumulator):
+            return self._hist + other._hist
+        if isinstance(other, Hist):
+            return self._hist + other
+        return NotImplemented
+
+    def __radd__(self, other):
+        from hist import Hist
+        if isinstance(other, Hist):
+            return other + self._hist
+        return NotImplemented
+
     def __getattr__(self, name):
         # Delegate common hist API (e.g. .fill, .plot, .axes, .values)
         return getattr(self._hist, name)
@@ -136,6 +151,20 @@ def recoil_pt(met_pt, met_phi, sum_lep_px, sum_lep_py):
     return ak.Array(np.sqrt(u_x**2 + u_y**2))
 
 
+def cos_theta_star(jet0, jet1):
+    """
+    cos(theta*) from the two leading jets: |tanh(Δη/2)| with Δη = η_jet0 - η_jet1.
+    Definition: ctsValue = abs(tanh(dEtaJet12 / 2)).
+    jet0, jet1: awkward arrays with .eta (one entry per event).
+    Returns array of shape (nEvents,) in [0, 1]; use only for events with valid jet pair.
+    """
+    eta0 = ak.to_numpy(jet0.eta)
+    eta1 = ak.to_numpy(jet1.eta)
+    d_eta = eta0 - eta1
+    cts = np.abs(np.tanh(d_eta / 2.0))
+    return ak.Array(np.clip(cts, 0.0, 1.0))
+
+
 class bbDMProcessor(processor.ProcessorABC):
     """
     Coffea processor for bbDM search: object selection, event selection, histograms.
@@ -178,6 +207,10 @@ class bbDMProcessor(processor.ProcessorABC):
             axis.Regular(50, 200, 700, name="met_sr", label="MET (SR) [GeV]"),
             storage="weight",
         )
+        self._hist_cos_theta_star_sr = Hist(
+            axis.Regular(25, 0, 1, name="cos_theta_star_sr", label="cos #theta* (SR)"),
+            storage="weight",
+        )
         self._hist_lead_jet_pt = Hist(
             axis.Regular(50, 0, 500, name="lead_jet_pt", label="Leading jet p$_T$ [GeV]"),
             storage="weight",
@@ -192,6 +225,7 @@ class bbDMProcessor(processor.ProcessorABC):
             "bjet_mult": HistAccumulator(self._hist_bjet_mult).identity(),
             "met": HistAccumulator(self._hist_met).identity(),
             "met_sr": HistAccumulator(self._hist_met_sr).identity(),
+            "cos_theta_star_sr": HistAccumulator(self._hist_cos_theta_star_sr).identity(),
             "lead_jet_pt": HistAccumulator(self._hist_lead_jet_pt).identity(),
             "cutflow": defaultdict_accumulator(int),
         })
@@ -242,6 +276,19 @@ class bbDMProcessor(processor.ProcessorABC):
         w_sr = weight[sr]
         out["cutflow"]["signal_region"] += int(ak.sum(sr))
         out["met_sr"].fill(met_sr=met[sr], weight=ak.to_numpy(w_sr))
+        # cos(theta*) from two leading jets in SR
+        good_jets_sr = good_jets[sr]
+        jets_pad = ak.pad_none(good_jets_sr, 2)
+        jet0 = ak.firsts(jets_pad[:, 0])
+        jet1 = ak.firsts(jets_pad[:, 1])
+        has_two = ak.num(good_jets_sr) >= 2
+        mask = has_two & ~ak.is_none(jet1)
+        if ak.sum(mask) > 0:
+            cts = cos_theta_star(jet0[mask], jet1[mask])
+            out["cos_theta_star_sr"].fill(
+                cos_theta_star_sr=ak.to_numpy(cts),
+                weight=ak.to_numpy(w_sr[mask]),
+            )
 
         return out
 
