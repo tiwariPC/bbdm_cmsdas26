@@ -42,7 +42,7 @@ git clone https://github.com/tiwariPC/bbdm_cmsdas26.git
 ```bash
 source /cvmfs/sft.cern.ch/lcg/views/LCG_105_swan/x86_64-el9-gcc13-opt/setup.sh
 ```
-Then you can convert the full notebook and run it or you take code cell individually and run them. Best way is to just open SWAN session after you have cloned the repo in SWAN_projects direcotry in your eos area.
+Then you can convert the full notebook and run it or you take code cell individually and run them. Best way is to just open SWAN session after you have cloned the repo in SWAN_projects directory in your eos area.
 
 
 ### On CERN SWAN with `LCG_105a`
