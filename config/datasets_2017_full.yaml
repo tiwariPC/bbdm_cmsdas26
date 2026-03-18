@@ -217,7 +217,7 @@ backgrounds:
   # Diboson (xsec in pb)
   - name: WW
     files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WW*RunIIFall17NanoAOD-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WW_*/**/*.root"
     xsec: 77.9187
     sumw: null
     year: 2017
@@ -226,7 +226,7 @@ backgrounds:
 
   - name: WZ
     files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WZ*RunIIFall17NanoAOD-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WZ_*/**/*.root"
     xsec: 46.781
     sumw: null
     year: 2017
@@ -235,7 +235,7 @@ backgrounds:
 
   - name: ZZ
     files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZZ*RunIIFall17NanoAOD-*/**/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZZ_*/**/*.root"
     xsec: 23.1168
     sumw: null
     year: 2017
@@ -315,87 +315,6 @@ backgrounds:
     year: 2017
     isData: false
     label: "t#bar{t} "
-
-  # QCD HT-binned (xsec in pb)
-  - name: QCD_HT100to200
-    files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT100to200_*/*/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT100to200_*/*.root"
-    xsec: 27540000.0
-    sumw: null
-    year: 2017
-    isData: false
-    label: "QCD "
-
-  - name: QCD_HT200to300
-    files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT200to300_*/*/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT200to300_*/*.root"
-    xsec: 1735000.0
-    sumw: null
-    year: 2017
-    isData: false
-    label: "QCD "
-
-  - name: QCD_HT300to500
-    files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT300to500_*/*/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT300to500_*/*.root"
-    xsec: 366800.0
-    sumw: null
-    year: 2017
-    isData: false
-    label: "QCD "
-
-  - name: QCD_HT500to700
-    files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT500to700_*/*/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT500to700_*/*.root"
-    xsec: 29990
-    sumw: null
-    year: 2017
-    isData: false
-    label: "QCD "
-
-  - name: QCD_HT700to1000
-    files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT700to1000_*/*/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT700to1000_*/*.root"
-    xsec: 6351
-    sumw: null
-    year: 2017
-    isData: false
-    label: "QCD "
-
-  - name: QCD_HT1000to1500
-    files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT1000to1500_*/*/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT1000to1500_*/*.root"
-    xsec: 1094
-    sumw: null
-    year: 2017
-    isData: false
-    label: "QCD "
-
-  - name: QCD_HT1500to2000
-    files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT1500to2000_*/*/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT1500to2000_*/*.root"
-    xsec: 98.99
-    sumw: null
-    year: 2017
-    isData: false
-    label: "QCD "
-
-  - name: QCD_HT2000toInf
-    files:
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT2000toInf_*/*/*.root"
-      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT2000toInf_*/*.root"
-    xsec: 20.23
-    sumw: null
-    year: 2017
-    isData: false
-    label: "QCD "
 
   # SM Higgs (xsec in pb; ttH inclusive at 13 TeV)
   - name: ttHTobb

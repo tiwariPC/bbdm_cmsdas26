@@ -35,8 +35,13 @@ class HistAccumulator(processor.AccumulatorABC):
 
     def identity(self):
         h = self._hist.copy()
-        # Zero all bins (including flow bins) for a clean identity
-        h.view(flow=True)[...] = 0
+        # Zero all bins (including flow); view can be (value, variance) in hist/boost_histogram
+        v = h.view(flow=True)
+        if hasattr(v.dtype, "names") and v.dtype.names:
+            for name in v.dtype.names:
+                v[name][...] = 0
+        else:
+            v[...] = 0
         return HistAccumulator(h)
 
     def add(self, other):
@@ -238,9 +243,10 @@ class bbDMProcessor(processor.ProcessorABC):
         out = self.accumulator
 
         # Weights: use genWeight if present, else 1 (keep as awkward for indexing)
-        weight = ak.ones_like(events.MET.pt)
+        weight = ak.ones_like(events.MET.pt, dtype=np.float64)
         if hasattr(events, "genWeight"):
-            weight = np.sign(events.genWeight)
+            weight = ak.values_astype(np.sign(events.genWeight), np.float64)
+        weight = ak.fill_none(weight, 1.0)
 
         # ----- Object selection -----
         good_jets = select_good_jets(events)
@@ -258,12 +264,12 @@ class bbDMProcessor(processor.ProcessorABC):
 
         # Per-jet weight (broadcast event weight to jets)
         w_jet = ak.flatten(ak.broadcast_arrays(w, good_jets[presel].pt)[0])
-        out["jet_pt"].fill(jet_pt=ak.flatten(good_jets[presel].pt), weight=ak.to_numpy(w_jet))
-        out["jet_mult"].fill(njet=njets[presel], weight=ak.to_numpy(w))
-        out["bjet_mult"].fill(nbjet=nbjets[presel], weight=ak.to_numpy(w))
-        out["met"].fill(met=met[presel], weight=ak.to_numpy(w))
+        out["jet_pt"].fill(jet_pt=ak.to_numpy(ak.flatten(good_jets[presel].pt)), weight=ak.to_numpy(ak.fill_none(w_jet, 1.0)))
+        out["jet_mult"].fill(njet=ak.to_numpy(njets[presel]), weight=ak.to_numpy(ak.fill_none(w, 1.0)))
+        out["bjet_mult"].fill(nbjet=ak.to_numpy(nbjets[presel]), weight=ak.to_numpy(ak.fill_none(w, 1.0)))
+        out["met"].fill(met=ak.to_numpy(met[presel]), weight=ak.to_numpy(ak.fill_none(w, 1.0)))
         lead_pt = ak.fill_none(ak.firsts(good_jets[presel].pt), 0.0)
-        out["lead_jet_pt"].fill(lead_jet_pt=ak.to_numpy(lead_pt), weight=ak.to_numpy(w))
+        out["lead_jet_pt"].fill(lead_jet_pt=ak.to_numpy(lead_pt), weight=ak.to_numpy(ak.fill_none(w, 1.0)))
 
         # ----- Signal region -----
         sr = (
@@ -275,19 +281,19 @@ class bbDMProcessor(processor.ProcessorABC):
         )
         w_sr = weight[sr]
         out["cutflow"]["signal_region"] += int(ak.sum(sr))
-        out["met_sr"].fill(met_sr=met[sr], weight=ak.to_numpy(w_sr))
+        out["met_sr"].fill(met_sr=ak.to_numpy(met[sr]), weight=ak.to_numpy(ak.fill_none(w_sr, 1.0)))
         # cos(theta*) from two leading jets in SR
         good_jets_sr = good_jets[sr]
         jets_pad = ak.pad_none(good_jets_sr, 2)
-        jet0 = ak.firsts(jets_pad[:, 0])
-        jet1 = ak.firsts(jets_pad[:, 1])
+        jet0 = jets_pad[:, 0]
+        jet1 = jets_pad[:, 1]
         has_two = ak.num(good_jets_sr) >= 2
         mask = has_two & ~ak.is_none(jet1)
         if ak.sum(mask) > 0:
             cts = cos_theta_star(jet0[mask], jet1[mask])
             out["cos_theta_star_sr"].fill(
                 cos_theta_star_sr=ak.to_numpy(cts),
-                weight=ak.to_numpy(w_sr[mask]),
+                weight=ak.to_numpy(ak.fill_none(w_sr[mask], 1.0)),
             )
 
         return out

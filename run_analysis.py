@@ -57,37 +57,30 @@ def main():
     from processor.bbdm_processor import bbDMProcessor
 
     try:
-        from coffea.processor import run_uproot_job, IterativeExecutor
-        use_runner = False
+        from coffea import processor
+        from coffea.nanoevents.schemas import NanoAODSchema
     except ImportError:
-        try:
-            from coffea import processor
-            use_runner = True
-        except ImportError:
-            print("coffea not found. Install with: pip install coffea")
-            sys.exit(1)
+        print("coffea not found. Install with: pip install coffea")
+        sys.exit(1)
 
     treename = "Events"  # NanoAOD tree name (often "Events")
     proc = bbDMProcessor()
+    runner = processor.Runner(
+        executor=processor.IterativeExecutor(),
+        schema=NanoAODSchema,
+    )
 
     # Run per dataset (Option A: separate histograms per dataset)
     results = {}
     for dataset_name, file_list in filesets.items():
         if not file_list:
             continue
+        if args.max_files:
+            file_list = file_list[: args.max_files]
         fileset = {dataset_name: file_list}
         print(f"Processing {dataset_name} ({len(file_list)} files)...")
         try:
-            if use_runner:
-                runner = processor.Runner(executor=processor.IterativeExecutor())
-                out = runner(fileset, treename=treename, processor_instance=proc)
-            else:
-                out = run_uproot_job(
-                    fileset,
-                    treename,
-                    proc,
-                    executor=IterativeExecutor(),
-                )
+            out = runner(fileset, treename, proc)
             results[dataset_name] = out
         except Exception as e:
             print(f"  Error: {e}")

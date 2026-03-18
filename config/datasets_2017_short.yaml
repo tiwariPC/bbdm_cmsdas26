@@ -39,11 +39,6 @@ backgrounds:
     isData: false
     label: "t#bar{t} "
     xsec: 365.2482
-  - name: QCD
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/QCD_HT1000to1500_TuneCP5_13TeV-madgraph-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/025A20BB-3F44-E811-B29C-0CC47A4C8E3C.root"
-    isData: false
-    label: "QCD "
-    xsec: 1094
   - name: SMH
     file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZH_HToBB_ZToLL_M125_13TeV_powheg_pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/227F86F4-6C41-E811-8145-0025904CF050.root"
     isData: false

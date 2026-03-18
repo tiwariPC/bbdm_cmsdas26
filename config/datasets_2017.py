@@ -86,7 +86,7 @@ def get_filesets_grouped(full=False, max_files_per_dataset=None):
                   "ttbar" -> [files from TT*],
                   "Zvv" -> [files from ZJetsToNuNu*],
                   "Wjets" -> [files from WJets*],
-                  ... etc. Other MC subdirs are grouped by first token (e.g. QCD_*, DY* -> DYJets).
+                  ... etc. Other MC subdirs are grouped by first token (e.g. DY* -> DYJets).
     """
     raw = get_filesets(full=full, max_files_per_dataset=max_files_per_dataset)
     if not raw:
@@ -106,8 +106,6 @@ def get_filesets_grouped(full=False, max_files_per_dataset=None):
                 key = "Wjets"
             elif subdir_name.startswith("DYJets"):
                 key = "DY"
-            elif subdir_name.startswith("QCD"):
-                key = "QCD"
             elif subdir_name.startswith("ST_"):
                 key = "single_top"
             else:
@@ -232,7 +230,6 @@ def get_short_fileset_and_labels() -> tuple:
         "DIBOSON": "WW/WZ/ZZ ",
         "STop": "Single t ",
         "Top": "t#bar{t} ",
-        "QCD": "QCD ",
         "SMH": "SMH ",
     }
     fileset: Dict[str, List[str]] = {}
@@ -263,7 +260,6 @@ def get_short_datasets_meta() -> Dict[str, Dict[str, Any]]:
         "DIBOSON": "WW/WZ/ZZ ",
         "STop": "Single t ",
         "Top": "t#bar{t} ",
-        "QCD": "QCD ",
         "SMH": "SMH ",
     }
     out: Dict[str, Dict[str, Any]] = {}
@@ -297,7 +293,7 @@ def get_full_filesets_from_yaml() -> Dict[str, List[str]]:
     for name, meta in full.items():
         files: List[str] = []
         for pattern in meta.get("files", []):
-            files.extend(sorted(glob.glob(pattern)))
+            files.extend(sorted(glob.glob(pattern, recursive=True)))
         if files:
             filesets[name] = files
     if not filesets:
