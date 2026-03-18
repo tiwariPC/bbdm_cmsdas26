@@ -65,8 +65,23 @@ class HistAccumulator(processor.AccumulatorABC):
         return NotImplemented
 
     def __getattr__(self, name):
-        # Delegate common hist API (e.g. .fill, .plot, .axes, .values)
+        if name == "_hist":
+            return object.__getattribute__(self, "_hist")
         return getattr(self._hist, name)
+
+    def __getstate__(self):
+        return {"_hist": self._hist}
+
+    def __setstate__(self, state):
+        if isinstance(state, dict) and "_hist" in state:
+            self._hist = state["_hist"]
+        elif isinstance(state, (tuple, list)) and len(state) == 2 and isinstance(state[1], dict):
+            # State is from the wrapped hist.Hist (pickle stored Hist's state for our slot)
+            from hist import Hist
+            self._hist = Hist.__new__(Hist)
+            self._hist.__setstate__(state)
+        else:
+            self._hist = state[0] if (isinstance(state, (tuple, list)) and len(state) > 0) else state
 
     def __repr__(self):
         return f"HistAccumulator({self._hist!r})"

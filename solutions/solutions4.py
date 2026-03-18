@@ -9,9 +9,8 @@
 # %%
 # Ensure project root is on sys.path (for SWAN / any kernel)
 import sys, os
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-if _script_dir:
-    sys.path.insert(0, os.path.join(_script_dir, ".."))
+sys.path.append("..")
+
 # Avoid recursion limit during deep pickle load (accumulator + hist)
 try:
     sys.setrecursionlimit(8000)
@@ -25,6 +24,7 @@ from scipy.optimize import minimize
 from scipy.stats import poisson, chi2
 
 import os
+
 def _load_results():
     candidates = [
         "output/output_2017.pkl", "output/output_2017_full.pkl",
@@ -35,6 +35,7 @@ def _load_results():
         if os.path.isfile(path):
             return pickle.load(open(path, "rb"))
     raise FileNotFoundError("Run run_analysis.py first. Outputs go to output/.")
+
 results = _load_results()
 
 all_datasets = list(results.keys())
