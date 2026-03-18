@@ -73,7 +73,7 @@ class HistAccumulator(processor.AccumulatorABC):
 JET_PT_MIN = 30.0   # GeV
 JET_ETA_MAX = 2.4
 BTAG_WP_MEDIUM = 0.2783   # DeepFlavB medium working point (2017)
-MET_SR_MIN = 200.0  # GeV, signal region
+MET_SR_MIN = 250.0  # GeV, signal region
 LEP_PT_MIN = 10.0   # GeV
 LEP_ETA_MAX = 2.5
 

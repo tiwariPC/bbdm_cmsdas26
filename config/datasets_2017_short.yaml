@@ -45,10 +45,10 @@ backgrounds:
     label: "QCD "
     xsec: 1094
   - name: SMH
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ttHTobb_M125_TuneCP5_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/08F689D4-B242-E811-89ED-6CC2173D44D0.root"
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZH_HToBB_ZToLL_M125_13TeV_powheg_pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/227F86F4-6C41-E811-8145-0025904CF050.root"
     isData: false
     label: "SMH "
-    xsec: null
+    xsec: 0.07924
 
 signal:
   - name: bbDM_2HDMa_LO_5f

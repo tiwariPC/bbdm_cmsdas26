@@ -407,6 +407,60 @@ backgrounds:
     isData: false
     label: "SMH "
 
+  - name: ggZH_HToBB_ZToNuNu_M125
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ggZH_HToBB_ZToNuNu_M125_*/**/*.root"
+    xsec: 0.01222
+    sumw: null
+    year: 2017
+    isData: false
+    label: "SMH "
+
+  - name: ggZH_HToBB_ZToLL_M125
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ggZH_HToBB_ZToLL_M125_*/**/*.root"
+    xsec: 0.006185
+    sumw: null
+    year: 2017
+    isData: false
+    label: "SMH "
+
+  - name: WminusH_HToBB
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WminusH_HToBB_*/**/*.root"
+    xsec: 0.3654
+    sumw: null
+    year: 2017
+    isData: false
+    label: "SMH "
+
+  - name: WplusH_HToBB_WToLNu_M125
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WplusH_HToBB_WToLNu_M125_*/**/*.root"
+    xsec: 0.2819
+    sumw: null
+    year: 2017
+    isData: false
+    label: "SMH "
+
+  - name: ZH_HToBB_ZToLL_M125
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZH_HToBB_ZToLL_M125_*/**/*.root"
+    xsec: 0.07924
+    sumw: null
+    year: 2017
+    isData: false
+    label: "SMH "
+
+  - name: ZH_HToBB_ZToNuNu_M125
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZH_HToBB_ZToNuNu_M125_*/**/*.root"
+    xsec: 0.1565
+    sumw: null
+    year: 2017
+    isData: false
+    label: "SMH "
+
 signal:
   - name: bbDM_2HDMa_LO_5f
     files:
