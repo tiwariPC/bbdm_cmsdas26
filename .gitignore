@@ -21,4 +21,5 @@ env/
 
 # Local / secrets
 *.local
+.local/
 .env.local

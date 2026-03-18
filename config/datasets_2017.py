@@ -8,9 +8,13 @@ Dataset dirs are discovered by listing subdirs of PATH_2017.
 """
 
 import os
+import random
 from pathlib import Path
+from typing import Any, Dict, List
 
-BASE_PATH = "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026"
+import yaml
+
+BASE_PATH = "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017"
 YEAR = 2017
 PATH_2017 = os.path.join(BASE_PATH, "2017")
 
@@ -82,7 +86,7 @@ def get_filesets_grouped(full=False, max_files_per_dataset=None):
                   "ttbar" -> [files from TT*],
                   "Zvv" -> [files from ZJetsToNuNu*],
                   "Wjets" -> [files from WJets*],
-                  ... etc. Other MC subdirs are grouped by first token (e.g. QCD_*, DY* -> DYJets).
+                  ... etc. Other MC subdirs are grouped by first token (e.g. DY* -> DYJets).
     """
     raw = get_filesets(full=full, max_files_per_dataset=max_files_per_dataset)
     if not raw:
@@ -102,8 +106,6 @@ def get_filesets_grouped(full=False, max_files_per_dataset=None):
                 key = "Wjets"
             elif subdir_name.startswith("DYJets"):
                 key = "DY"
-            elif subdir_name.startswith("QCD"):
-                key = "QCD"
             elif subdir_name.startswith("ST_"):
                 key = "single_top"
             else:
@@ -116,21 +118,184 @@ def get_filesets_grouped(full=False, max_files_per_dataset=None):
 
 def get_one_file_per_group(full=False):
     """
-    For one-file mode: return one file from "data" and one from first background.
-    Convenience for notebooks: {"data": [path], "background": [path]}.
+    For one-file / mode 1: return one file chosen at random from data and one from background.
+    Returns {"data": [path], "background": [path]} for notebooks.
     """
     grouped = get_filesets_grouped(full=False, max_files_per_dataset=1)
     if not grouped:
         return {}
     out = {}
     if "data" in grouped and grouped["data"]:
-        out["data"] = grouped["data"][:1]
-    # One background: prefer ttbar if present
-    for key in ("ttbar", "Zvv", "Wjets", "DY", "QCD"):
-        if key in grouped and grouped[key]:
-            out["background"] = grouped[key][:1]
-            break
-    if "background" not in out and grouped:
-        first_key = next(k for k in grouped if k != "data")
-        out["background"] = grouped[first_key][:1]
+        out["data"] = [random.choice(grouped["data"])]
+    # One background file chosen at random from any background dataset
+    bg_files = [f for k in grouped if k != "data" for f in grouped[k]]
+    if bg_files:
+        out["background"] = [random.choice(bg_files)]
     return out
+
+
+# YAML-based configuration ----------------------------------------------------
+
+SHORT_YAML = os.path.join(os.path.dirname(__file__), "datasets_2017_short.yaml")
+FULL_YAML = os.path.join(os.path.dirname(__file__), "datasets_2017_full.yaml")
+
+
+def _load_yaml(path: str) -> Dict[str, Any]:
+    if not os.path.isfile(path):
+        return {}
+    with open(path, "r") as f:
+        return yaml.safe_load(f) or {}
+
+
+def load_live_datasets() -> Dict[str, List[str]]:
+    """
+    Load one-file-per-dataset config for the live exercise from YAML.
+
+    Returns dict with keys "data", "backgrounds", "signal",
+    each mapping to a list of file paths.
+    """
+    cfg = _load_yaml(SHORT_YAML)
+    out: Dict[str, List[str]] = {}
+    for group in ("data", "backgrounds", "signal"):
+        entries = cfg.get(group, []) or []
+        files: List[str] = []
+        for entry in entries:
+            path = entry.get("file")
+            if path:
+                files.append(path)
+        if files:
+            out[group] = files
+    return out
+
+
+def load_full_datasets() -> Dict[str, Dict[str, Any]]:
+    """
+    Load full-analysis dataset config from YAML.
+
+    Returns dict keyed by dataset name with fields:
+      - files: list of path or glob patterns
+      - xsec, sumw, year, isData, label
+    """
+    cfg = _load_yaml(FULL_YAML)
+    out: Dict[str, Dict[str, Any]] = {}
+    for group in ("data", "backgrounds", "signal"):
+        entries = cfg.get(group, []) or []
+        for entry in entries:
+            name = entry.get("name")
+            if not name:
+                continue
+            out[name] = {
+                "group": group,
+                "files": entry.get("files", []),
+                "xsec": entry.get("xsec"),
+                "sumw": entry.get("sumw"),
+                "year": entry.get("year"),
+                "isData": entry.get("isData", False),
+                "label": entry.get("label", name),
+            }
+    return out
+
+
+def get_one_file_per_group_from_yaml() -> Dict[str, List[str]]:
+    """
+    Convenience wrapper for notebooks: use live YAML if present,
+    otherwise fall back to dynamic discovery.
+    """
+    live = load_live_datasets()
+    if live:
+        out: Dict[str, List[str]] = {}
+        if "data" in live and live["data"]:
+            out["data"] = [live["data"][0]]
+        # background: pick first background file from any background entry
+        bg_files = live.get("backgrounds", [])
+        if bg_files:
+            out["background"] = [bg_files[0]]
+        if out:
+            return out
+    return get_one_file_per_group()
+
+
+def get_short_fileset_and_labels() -> tuple:
+    """
+    Load one-file-per-dataset from short YAML for Session 3.
+    Returns (fileset, labels):
+      - fileset: dict name -> [path] for "data" and each background (and optionally signal).
+      - labels: dict name -> display label for plots/legends (from YAML or built-in).
+    """
+    cfg = _load_yaml(SHORT_YAML)
+    default_labels = {
+        "DYJets": "Z(ll)+jets ",
+        "ZJets": "Z(#nu#nu)+jets ",
+        "WJets": "W(l#nu)+jets ",
+        "DIBOSON": "WW/WZ/ZZ ",
+        "STop": "Single t ",
+        "Top": "t#bar{t} ",
+        "SMH": "SMH ",
+    }
+    fileset: Dict[str, List[str]] = {}
+    labels: Dict[str, str] = {}
+    for group in ("data", "backgrounds", "signal"):
+        entries = cfg.get(group, []) or []
+        for entry in entries:
+            name = entry.get("name")
+            path = entry.get("file")
+            if not name or not path:
+                continue
+            fileset[name] = [path]
+            labels[name] = entry.get("label") or default_labels.get(name, name)
+    return fileset, labels
+
+
+def get_short_datasets_meta() -> Dict[str, Dict[str, Any]]:
+    """
+    Session 3 helper: load short YAML and return per-dataset metadata.
+
+    Returns dict: name -> {files: [path], label: str, xsec: float|None, isData: bool}
+    """
+    cfg = _load_yaml(SHORT_YAML)
+    default_labels = {
+        "DYJets": "Z(ll)+jets ",
+        "ZJets": "Z(#nu#nu)+jets ",
+        "WJets": "W(l#nu)+jets ",
+        "DIBOSON": "WW/WZ/ZZ ",
+        "STop": "Single t ",
+        "Top": "t#bar{t} ",
+        "SMH": "SMH ",
+    }
+    out: Dict[str, Dict[str, Any]] = {}
+    for group in ("data", "backgrounds", "signal"):
+        entries = cfg.get(group, []) or []
+        for entry in entries:
+            name = entry.get("name")
+            path = entry.get("file")
+            if not name or not path:
+                continue
+            out[name] = {
+                "files": [path],
+                "label": entry.get("label") or default_labels.get(name, name),
+                "xsec": entry.get("xsec"),
+                "isData": bool(entry.get("isData", False)),
+            }
+    return out
+
+
+def get_full_filesets_from_yaml() -> Dict[str, List[str]]:
+    """
+    Build fileset dict dataset_name -> list of file paths from full YAML.
+    If YAML is missing or empty, fall back to dynamic discovery.
+    """
+    import glob
+
+    full = load_full_datasets()
+    if not full:
+        return get_filesets(full=True)
+    filesets: Dict[str, List[str]] = {}
+    for name, meta in full.items():
+        files: List[str] = []
+        for pattern in meta.get("files", []):
+            files.extend(sorted(glob.glob(pattern, recursive=True)))
+        if files:
+            filesets[name] = files
+    if not filesets:
+        return get_filesets(full=True)
+    return filesets

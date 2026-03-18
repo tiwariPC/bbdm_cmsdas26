@@ -20,7 +20,7 @@ This guide helps instructors run the four-session bbDM long exercise. It covers 
 ### Session 3
 - **MET in signal region (MET > 200 GeV, ≥2 b-jets, 0 leptons)**: Should show clear excess at high MET if signal is present; otherwise background-dominated with Z→νν important.
 - **Yield table**: Example order of magnitude (depends on luminosity and samples):
-  - Before SR: tt̄ ≫ W+jets, Z→νν, QCD.
+  - Before SR: tt̄ ≫ W+jets, Z→νν.
   - After SR: Z→νν and tt̄ dominant; W+jets reduced by lepton veto.
 
 ### Session 4

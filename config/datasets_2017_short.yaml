@@ -1,0 +1,52 @@
+# One file per dataset for short/live exercise and Session 3 (one file per background + MET data).
+# JHEP 02 (2025) 050 style: SR and CRs use preselection; SR = MC-only plots; data in CRs.
+# Instructors can edit paths or add/remove entries.
+
+data:
+  - name: MET_Run2017B
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017B-02Apr2020-v1/00DCCA4E-F5F1-F84D-A6EC-2956ACAB6E02.root"
+    isData: true
+    label: "Data MET 2017"
+
+backgrounds:
+  - name: DYJets
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/DYJetsToLL_M-50_HT-400to600_TuneCP5_13TeV-madgraphMLM-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/0288E440-0142-E811-8933-0CC47A7C3638.root"
+    isData: false
+    label: "Z(ll)+jets "
+    xsec: 6.982
+  - name: ZJets
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-400To600_13TeV-madgraph-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/084C97E6-868F-E811-815E-FA163E3EF566.root"
+    isData: false
+    label: "Z(#nu#nu)+jets "
+    xsec: 13.11
+  - name: WJets
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WJetsToLNu_HT-400To600_TuneCP5_13TeV-madgraphMLM-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/0209439B-D65A-E811-8708-A4BF01125A90.root"
+    isData: false
+    label: "W(l#nu)+jets "
+    xsec: 57.91
+  - name: DIBOSON
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WW_TuneCP5_13TeV-pythia8/2CBB934D-EA44-E811-AEA4-0CC47A4D7600.root"
+    isData: false
+    label: "WW "
+    xsec: 77.9187
+  - name: STop
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ST_t-channel_top_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/1222E888-E643-E811-A547-002481DE4932.root"
+    isData: false
+    label: "Single t "
+    xsec: 136.02
+  - name: Top
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v2/0009B970-B9B0-E811-9F54-68B5996BD98E.root"
+    isData: false
+    label: "t#bar{t} "
+    xsec: 365.2482
+  - name: SMH
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZH_HToBB_ZToLL_M125_13TeV_powheg_pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/227F86F4-6C41-E811-8145-0025904CF050.root"
+    isData: false
+    label: "SMH "
+    xsec: 0.07924
+
+signal:
+  - name: bbDM_2HDMa_LO_5f
+    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/bbDM_2HDMa_LO_5f_TuneCP3_13TeV_madgraph_pythia8/3FF7F0D3-424B-624F-97C4-00CD47D17C34.root"
+    isData: false
+    label: "bbDM (2HDM+a)"

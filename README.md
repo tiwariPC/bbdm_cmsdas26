@@ -10,7 +10,6 @@ A complete teaching package for a long exercise similar to those used in the CMS
 - **Signature**: two or more b-jets, large MET, no isolated leptons
 - **Backgrounds**: tt̄, Z→νν+jets, W+jets
 - **Audience**: PhD students or early-stage researchers (basic Python, no Coffea/NanoAOD experience)
-- **Duration**: 12 hours total (4 sessions × 3 hours)
 
 ## Folder Structure
 
@@ -29,8 +28,12 @@ bbDM_DAS_LongExercise/
 ├── run_analysis.py                      # One-file or full run (--full)
 ├── requirements.txt                     # Python dependencies
 ├── scripts/
-│   ├── setup_venv.sh                    # Create .venv and install deps
-│   └── start.sh                         # Activate venv, optional --jupyter
+│   ├── setup.sh                         # Source LCG, install deps into .local, optional --jupyter
+│   └── run_mode1_tests.py               # Mode 1 smoke test (config, run_analysis, S1–S4)
+├── tests/
+│   ├── test_mode1_config.py             # Config and file discovery
+│   ├── test_mode1_run_analysis.py       # Processor run and pkl structure
+│   └── test_mode1_notebooks.py          # Session 1–4 notebook-equivalent logic
 ├── SWAN.md                              # Running on CERN SWAN
 ├── datasets/
 │   └── dataset_guide.md                 # How to get NanoAOD samples
@@ -44,63 +47,19 @@ bbDM_DAS_LongExercise/
 └── InstructorGuide.md                   # Teaching notes and expected results
 ```
 
-## Prerequisites
-
-- Python 3.8+
-- Jupyter (or JupyterLab)
-- Install dependencies:
-
+### On Lxplus `LCG_105_swan`
 ```bash
-pip install coffea matplotlib hist uproot
+source /cvmfs/sft.cern.ch/lcg/views/LCG_105_swan/x86_64-el9-gcc13-opt/setup.sh
 ```
 
-For full Coffea + NanoAOD (optional, for real data access):
 
-```bash
-pip install coffea[dask] xrootd
-```
+### On CERN SWAN with `LCG_105a`
 
-Or use the project’s **requirements.txt** and setup script (see below).
 
-### Using the setup script
+1. Choose `LCG_105a` when starting the SWAN session
 
-From the project root, create a virtual environment and install dependencies:
 
-```bash
-bash scripts/setup_venv.sh
-```
+2. Select 4 CPUs and 16GB Memory
 
-Then activate and optionally start Jupyter:
 
-```bash
-source scripts/start.sh          # activate only
-bash scripts/start.sh --jupyter  # activate and start Jupyter
-```
-
-**On CERN SWAN:** see [SWAN.md](SWAN.md) for session configuration (CPU, memory), setup steps, and kernel selection.
-
-## Running the Exercise
-
-1. Start Jupyter: `jupyter notebook` or `jupyter lab`
-2. Work through the notebooks in order: Session 1 → 2 → 3 → 4
-3. Use small example NanoAOD files (see `datasets/dataset_guide.md`) or the processor on a teaching cluster
-
-### Two run modes (2017 samples)
-
-Input files for 2017 are under `/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017`. The config in `config/datasets_2017.py` discovers datasets and builds file lists.
-
-- **One-file mode:** In Session 1, use the optional cell that loads one file from data and one from background via the config. You can also run: `python run_analysis.py` (one file per dataset) and inspect the output.
-- **Full analysis:** Run on all files and save merged histograms: `python run_analysis.py --full -o output_2017_full.pkl`. To run on Condor from project root: `condor_submit condor/submit_condor.sub`. See `condor/README.md`.
-
-## Sessions
-
-| Session | Notebook | Focus |
-|---------|----------|--------|
-| 1 | `session1_intro_and_datasets.ipynb` | Dark matter motivation, CMS data formats, NanoAOD, Coffea basics, loading data, basic plots |
-| 2 | `session2_object_selection.ipynb` | Jet selection, b-tagging (DeepJet), lepton veto, event cleaning |
-| 3 | `session3_signal_region_analysis.ipynb` | Signal region definition, MET and yields, control regions, background composition |
-| 4 | `session4_systematics_fitting_limits.ipynb` | Weights and systematics, binned fit, goodness of fit, limit calculation |
-
-## License and Contact
-
-This material is intended for educational use at CMS DAS-style schools. For questions, refer to `InstructorGuide.md` or your local organisers.
+3. Click on `Start new Session`
