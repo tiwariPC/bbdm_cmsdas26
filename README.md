@@ -26,40 +26,33 @@ bbDM_DAS_LongExercise/
 ├── processor/
 │   └── bbdm_processor.py               # Reusable Coffea processor
 ├── run_analysis.py                      # One-file or full run (--full)
-├── requirements.txt                     # Python dependencies
-├── scripts/
-│   ├── setup.sh                         # Source LCG, install deps into .local, optional --jupyter
-│   └── run_mode1_tests.py               # Mode 1 smoke test (config, run_analysis, S1–S4)
-├── tests/
-│   ├── test_mode1_config.py             # Config and file discovery
-│   ├── test_mode1_run_analysis.py       # Processor run and pkl structure
-│   └── test_mode1_notebooks.py          # Session 1–4 notebook-equivalent logic
-├── SWAN.md                              # Running on CERN SWAN
 ├── datasets/
 │   └── dataset_guide.md                 # How to get NanoAOD samples
-├── solutions/
-│   ├── solutions_session1.ipynb
-│   ├── solutions_session2.ipynb
-│   ├── solutions_session3.ipynb
-│   └── solutions_session4.ipynb
+├── solutions/                           # Hints for the excercises
 ├── figures/                             # Optional diagrams
 ├── README.md                            # This file
-└── InstructorGuide.md                   # Teaching notes and expected results
+```
+
+Clone this repository in your `/eos/user/<first letter of your username>/<username>/SWAN_projects/`
+```bash
+git clone https://github.com/tiwariPC/bbdm_cmsdas26.git
 ```
 
 ### On Lxplus `LCG_105_swan`
 ```bash
 source /cvmfs/sft.cern.ch/lcg/views/LCG_105_swan/x86_64-el9-gcc13-opt/setup.sh
 ```
+Then you can convert the full notebook and run it or you take code cell individually and run them. Best way is to just open SWAN session after you have cloned the repo in SWAN_projects direcotry in your eos area.
 
 
 ### On CERN SWAN with `LCG_105a`
 
+1. CLick on [https://swan.cern.ch/hub/home](https://swan.cern.ch/hub/home)
 
-1. Choose `LCG_105a` when starting the SWAN session
+2.  Choose `LCG_105a` when starting the SWAN session by clicking Software stack option
 
+3. Select 4 CPUs and 16GB Memory
 
-2. Select 4 CPUs and 16GB Memory
+4. Click on `Start new Session`
 
-
-3. Click on `Start new Session`
+You will see bbdm_cmsdas26 repo there
