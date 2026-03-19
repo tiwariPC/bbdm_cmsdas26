@@ -14,6 +14,8 @@ from coffea.processor import dict_accumulator, defaultdict_accumulator
 from coffea.nanoevents import NanoEventsFactory, NanoAODSchema
 from hist import Hist, axis
 
+from config.datasets_2017 import get_trigger_list
+
 NanoAODSchema.warn_missing_crossrefs = False
 
 
@@ -256,6 +258,17 @@ class bbDMProcessor(processor.ProcessorABC):
         """
         dataset = events.metadata.get("dataset", "unknown")
         out = self.accumulator
+
+        # ----- Trigger: OR of analysis HLT paths (first cut, applied to data and MC) -----
+        trigger_list = get_trigger_list()
+        hlt_fields = set(events.HLT.fields) if hasattr(events, "HLT") and hasattr(events.HLT, "fields") else set()
+        trigger_mask = ak.ones_like(events.event, dtype=bool)
+        if hlt_fields:
+            for tname in trigger_list:
+                if tname in hlt_fields:
+                    trigger_mask = trigger_mask | events.HLT[tname]
+        out["cutflow"]["trigger"] += int(ak.sum(trigger_mask))
+        events = events[trigger_mask]
 
         # Weights: use genWeight if present, else 1 (keep as awkward for indexing)
         weight = ak.ones_like(events.MET.pt, dtype=np.float64)

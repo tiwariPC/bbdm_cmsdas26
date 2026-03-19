@@ -139,6 +139,37 @@ def get_one_file_per_group(full=False):
 SHORT_YAML = os.path.join(os.path.dirname(__file__), "datasets_2017_short.yaml")
 FULL_YAML = os.path.join(os.path.dirname(__file__), "datasets_2017_full.yaml")
 
+# Fallback trigger list if YAML does not define triggers (e.g. older configs)
+DEFAULT_TRIGGERS = [
+    "HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60",
+    "HLT_PFMETNoMu120_PFMHTNoMu120_IDTight",
+    "HLT_PFMETNoMu140_PFMHTNoMu140_IDTight",
+    "HLT_Ele27_WPTight_Gsf",
+    "HLT_Ele32_WPTight_Gsf_L1DoubleEG",
+    "HLT_Ele32_WPTight_Gsf",
+    "HLT_Ele35_WPTight_Gsf",
+    "HLT_IsoMu24",
+    "HLT_IsoMu27",
+    "HLT_IsoTkMu27",
+    "HLT_IsoTkMu24",
+    "HLT_Photon200",
+]
+
+
+def get_trigger_list(prefer_full: bool = True) -> List[str]:
+    """
+    Return the analysis HLT path list from YAML config.
+
+    - prefer_full=True: read from datasets_2017_full.yaml first, else short.
+    - If neither YAML has a 'triggers' key, return DEFAULT_TRIGGERS.
+    """
+    for path in ([FULL_YAML, SHORT_YAML] if prefer_full else [SHORT_YAML, FULL_YAML]):
+        cfg = _load_yaml(path)
+        triggers = cfg.get("triggers")
+        if triggers and isinstance(triggers, list):
+            return [str(t) for t in triggers]
+    return list(DEFAULT_TRIGGERS)
+
 
 def _load_yaml(path: str) -> Dict[str, Any]:
     if not os.path.isfile(path):
