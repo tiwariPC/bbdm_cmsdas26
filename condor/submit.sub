@@ -4,19 +4,18 @@
 # Requires: Python with coffea, uproot, awkward (e.g. lxplus or conda env).
 
 universe = vanilla
-executable = /usr/bin/python3
-arguments = run_analysis.py --full --year 2017 -o output_2017_full.pkl
+executable = condor/execute.sh
 should_transfer_files = YES
-transfer_input_files = ../run_analysis.py, ../config/datasets_2017.py, ../config/__init__.py, ../processor/bbdm_processor.py
+transfer_input_files = run_analysis.py, config, processor, condor/execute.sh
 transfer_output_files = output/output_2017_full.pkl
 when_to_transfer_output = ON_EXIT
 output = condor_out_$(Cluster)_$(Process).out
 error = condor_err_$(Cluster)_$(Process).err
 log = condor_$(Cluster).log
-request_memory = 4096
-request_disk = 2048
-request_cpus = 1
+request_memory = 12000
+request_cpus = 8
 +JobBatchName = "bbdm_2017_full"
++JobFlavour = "testmatch"
 
 # Submit from project root so initialdir = project root (where run_analysis.py will be)
 queue 1

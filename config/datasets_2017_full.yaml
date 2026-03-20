@@ -12,6 +12,62 @@ triggers:
   - IsoTkMu24
   - Photon200
 
+# --- Merged pickle output (run_analysis.py, default: merge ON; use --per-dataset for one key per sample)
+# All HT-binned DY/Z/W samples below map to a single DYJets / ZJets / WJets accumulator via prefix rules.
+# Override or extend here without editing Python:
+#   merge_groups:           # exact YAML "name" -> merged key
+#     WW: DIBOSON
+#   merge_prefix_rules:     # longest prefix wins first
+#     - prefix: "DYJetsToLL_M50_HT"
+#       group: DYJets
+# Per-dataset override on any entry: merge_as: DYJets
+merge_groups: {}
+merge_prefix_rules:
+  - prefix: DYJetsToLL_M50_HT
+    group: DYJets
+  - prefix: ZJetsToNuNu_HT
+    group: ZJets
+  - prefix: WJetsToLNu_HT
+    group: WJets
+  - prefix: TT
+    group: Top
+  - prefix: ST_
+    group: STop
+  # Diboson
+  - prefix: WW
+    group: DIBOSON
+  - prefix: WZ
+    group: DIBOSON
+  - prefix: ZZ
+    group: DIBOSON
+  # SMH (H→bb + associated production)
+  - prefix: ttHTobb_ttToSemiLep_M125
+    group: SMH
+  - prefix: ttHTobb_ttTo2L2Nu_M125
+    group: SMH
+  - prefix: WminusH_HToBB_WToQQ_M125
+    group: SMH
+  - prefix: WplusH_HToBB_WToLNu_M125
+    group: SMH
+  - prefix: ggZH_HToBB_ZToNuNu_M125
+    group: SMH
+  - prefix: ggZH_HToBB_ZToLL_M125
+    group: SMH
+  - prefix: ZH_HToBB_ZToNuNu_M125
+    group: SMH
+  - prefix: ZH_HToBB_ZToLL_M125
+    group: SMH
+  - prefix: ttHTobb_M125
+    group: SMH
+  - prefix: VBFHToBB_M-125
+    group: SMH
+  - prefix: VBFHToBB
+    group: SMH
+  - prefix: WminusH_HToBB
+    group: SMH
+  - prefix: ttHTobb
+    group: SMH
+
 data:
   - name: MET_Run2017
     files:

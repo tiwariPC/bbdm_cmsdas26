@@ -2,21 +2,25 @@
 Dataset config and file discovery for 2017.
 
 All 2017 files (data, background, and later signal) live under:
-  BASE_PATH / 2017 / <dataset_dir> / *.root
+  BASE_PATH / <year> / <dataset_dir> / *.root
+  e.g. .../cmsdas2026/2017/MET-Run2017B-.../
 
-Dataset dirs are discovered by listing subdirs of PATH_2017.
+Dataset dirs are discovered by listing subdirs of PATH_2017 (dynamic fallback
+when full YAML globs match no files — e.g. use lxplus/eos access).
 """
 
 import os
 import random
 from pathlib import Path
-from typing import Any, Dict, List
+import functools
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
-BASE_PATH = "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017"
+# EOS area root (do *not* include the year twice — PATH_2017 is BASE_PATH/year)
+BASE_PATH = "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026"
 YEAR = 2017
-PATH_2017 = os.path.join(BASE_PATH, "2017")
+PATH_2017 = os.path.join(BASE_PATH, str(YEAR))
 
 # Optional: group dataset dirs into categories for plotting.
 # Keys are short names (e.g. "data", "ttbar"); values are list of subdir name prefixes or full names.
@@ -223,6 +227,8 @@ def load_full_datasets() -> Dict[str, Dict[str, Any]]:
                 "year": entry.get("year"),
                 "isData": entry.get("isData", False),
                 "label": entry.get("label", name),
+                # Optional: merged pickle group (see merge_groups / merge_prefix_rules in YAML)
+                "merge_as": entry.get("merge_as"),
             }
     return out
 
@@ -330,3 +336,207 @@ def get_full_filesets_from_yaml() -> Dict[str, List[str]]:
     if not filesets:
         return get_filesets(full=True)
     return filesets
+
+
+# --- Merged processor output (run_analysis.py) --------------------------------
+#
+# Fine-tune which YAML/EOS dataset names merge into which pickle key via YAML:
+#   - merge_groups: { "DYJetsToLL_M50_HT100to200": "DYJets", ... }  (exact names)
+#   - merge_prefix_rules: [ { prefix: "DYJetsToLL_M50_HT", group: "DYJets" }, ... ]
+#     Longer prefixes are matched first.
+#   - Per entry under data/backgrounds/signal: merge_as: DYJets
+# See datasets_2017_full.yaml and datasets_2017_short.yaml for examples.
+
+# Order for pretty-printing / stable pickle iteration (not required for correctness)
+MERGED_GROUP_ORDER = (
+    "data",
+    "DYJets",
+    "ZJets",
+    "WJets",
+    "Top",
+    "STop",
+    "DIBOSON",
+    "SMH",
+    "signal",
+)
+
+
+def _merged_sample_key_heuristic(dataset_name: str) -> str:
+    """
+    Map a full per-sample name (from YAML / EOS) to a short physics group when no YAML rule matches.
+
+    Groups: data, DYJets, ZJets, WJets, Top, STop, DIBOSON, SMH, signal (bbDM), or unchanged fallback.
+    """
+    n = dataset_name
+    if n.startswith("MET_") or "Run2017" in n or n.startswith("SingleElectron") or n.startswith("SingleMuon"):
+        return "data"
+    if n.startswith("DYJetsToLL") or n.startswith("DYJets"):
+        return "DYJets"
+    if n.startswith("ZJetsToNuNu"):
+        return "ZJets"
+    if n.startswith("WJetsToLNu"):
+        return "WJets"
+    if n.startswith("TT"):
+        return "Top"
+    if n.startswith("ST_"):
+        return "STop"
+    if n in ("WW", "WZ", "ZZ"):
+        return "DIBOSON"
+    if n.startswith("bbDM"):
+        return "signal"
+    if n.startswith(("ttH", "ggZH", "ZH_", "WminusH", "WplusH")):
+        return "SMH"
+    return n
+
+
+@functools.lru_cache(maxsize=1)
+def load_merge_config() -> Tuple[Dict[str, str], List[Tuple[str, str]]]:
+    """
+    Load merge mapping from datasets_2017_short.yaml then datasets_2017_full.yaml.
+
+    Returns
+    -------
+    merge_map :
+        Exact dataset name -> merged group (from ``merge_groups`` and per-entry ``merge_as``).
+    prefix_rules :
+        List of (prefix, group), sorted by descending prefix length (longest match wins).
+    """
+    merge_map: Dict[str, str] = {}
+    # Last YAML file wins for the same prefix (SHORT then FULL → full overrides).
+    prefix_by_prefix: Dict[str, str] = {}
+
+    def _ingest_yaml(path: str) -> None:
+        cfg = _load_yaml(path)
+        if not cfg:
+            return
+        for k, v in (cfg.get("merge_groups") or {}).items():
+            merge_map[str(k)] = str(v)
+        for group in ("data", "backgrounds", "signal"):
+            for entry in cfg.get(group, []) or []:
+                name = entry.get("name")
+                ma = entry.get("merge_as")
+                if name and ma:
+                    merge_map[str(name)] = str(ma)
+        for rule in cfg.get("merge_prefix_rules") or []:
+            p = rule.get("prefix")
+            g = rule.get("group")
+            if p and g:
+                prefix_by_prefix[str(p)] = str(g)
+
+    _ingest_yaml(SHORT_YAML)
+    _ingest_yaml(FULL_YAML)
+    prefix_rules = sorted(prefix_by_prefix.items(), key=lambda x: -len(x[0]))
+    return merge_map, prefix_rules
+
+
+def resolve_merge_key(
+    dataset_name: str,
+    merge_map: Optional[Dict[str, str]] = None,
+    prefix_rules: Optional[List[Tuple[str, str]]] = None,
+) -> str:
+    """
+    Resolve merged pickle key: exact map, then longest prefix rule, then heuristics.
+    """
+    mm = merge_map if merge_map is not None else {}
+    pr = prefix_rules if prefix_rules is not None else []
+    n = str(dataset_name)
+    if n in mm:
+        return mm[n]
+    pr_sorted = sorted(pr, key=lambda x: -len(x[0]))
+    for prefix, group in pr_sorted:
+        if n.startswith(prefix):
+            return group
+    return _merged_sample_key_heuristic(n)
+
+
+def merged_sample_key(dataset_name: str) -> str:
+    """Same as resolve_merge_key with YAML config from load_merge_config()."""
+    mm, pr = load_merge_config()
+    return resolve_merge_key(dataset_name, mm, pr)
+
+
+def merge_processor_results_by_group(
+    results: Dict[str, Any],
+    merge_map: Optional[Dict[str, str]] = None,
+    prefix_rules: Optional[List[Tuple[str, str]]] = None,
+) -> Dict[str, Any]:
+    """
+    Sum Coffea dict_accumulators from each per-dataset run into one entry per merged group.
+
+    Parameters
+    ----------
+    results :
+        Output of run_analysis loop: {full_dataset_name: dict_accumulator}.
+    merge_map, prefix_rules :
+        If both are None, values are loaded from YAML via load_merge_config().
+
+    Returns
+    -------
+    dict
+        {group_name: merged accumulator}, e.g. ``{"data": ..., "DYJets": ..., "ZJets": ...}``.
+    """
+    from collections import defaultdict
+
+    if not results:
+        return {}
+
+    if merge_map is None and prefix_rules is None:
+        merge_map, prefix_rules = load_merge_config()
+    else:
+        if merge_map is None:
+            merge_map = {}
+        if prefix_rules is None:
+            prefix_rules = []
+
+    buckets: Dict[str, List[Any]] = defaultdict(list)
+    for name, acc in results.items():
+        buckets[resolve_merge_key(str(name), merge_map, prefix_rules)].append(acc)
+
+    merged: Dict[str, Any] = {}
+    for key, acc_list in buckets.items():
+        total = acc_list[0]
+        for a in acc_list[1:]:
+            total = total + a
+        merged[key] = total
+
+    # Stable key order: known groups first, then any other merged keys
+    ordered: Dict[str, Any] = {}
+    for k in MERGED_GROUP_ORDER:
+        if k in merged:
+            ordered[k] = merged[k]
+    for k in sorted(merged.keys()):
+        if k not in ordered:
+            ordered[k] = merged[k]
+    return ordered
+
+
+def is_merged_results_format(results: Dict[str, Any]) -> bool:
+    """True if pickle looks like merge_processor_results_by_group output (short group keys)."""
+    if not results:
+        return False
+    keys = set(results.keys())
+    # Legacy pickles use long YAML names like DYJetsToLL_M50_HT100to200
+    if any(k.startswith("DYJetsToLL_") or k.startswith("ZJetsToNuNu_") for k in keys):
+        return False
+    return bool(keys & set(MERGED_GROUP_ORDER))
+
+
+def data_and_bkg_keys(results: Dict[str, Any]) -> tuple:
+    """
+    Return (data_key_list, bkg_key_list) for loading merged or legacy processor pickles.
+
+    Merged format: data -> ``[\"data\"]``, backgrounds exclude ``signal`` unless you add it by hand.
+    Legacy: discover MET/Run2017/Single* as data, rest as backgrounds.
+    """
+    keys = list(results.keys())
+    if is_merged_results_format(results):
+        data_keys = ["data"]
+        bkg_keys = [k for k in keys if k not in ("data", "signal")]
+        return data_keys, bkg_keys
+    data_keys = [
+        d
+        for d in keys
+        if ("Run2017" in d) or ("Single" in d) or d.startswith("MET_")
+    ]
+    bkg_keys = [d for d in keys if d not in data_keys]
+    return data_keys, bkg_keys

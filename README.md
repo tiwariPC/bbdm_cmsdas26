@@ -20,12 +20,14 @@ bbDM_DAS_LongExercise/
 ├── session3_signal_region_analysis.ipynb # Session 3: Signal region, yields
 ├── session4_systematics_fitting_limits.ipynb # Session 4: Weights, systematics, fit, limits
 ├── config/
-│   └── datasets_2017.py                # 2017 paths and file discovery
+│   ├── datasets_2017.py                # 2017 paths, merge rules for pickle output
+│   ├── datasets_2017_full.yaml         # merge_groups / merge_prefix_rules (fine-tune merged pickle keys)
+│   └── datasets_2017_short.yaml        # same merge_* kept in sync for short / one-file workflows
 ├── condor/
 │   └── submit_condor.sub               # Condor submit for full analysis
 ├── processor/
 │   └── bbdm_processor.py               # Reusable Coffea processor
-├── run_analysis.py                      # One-file or full run (--full)
+├── run_analysis.py                      # merges MC into DYJets, ZJets, … (default); tune in datasets_2017_full.yaml; --per-dataset = one key per sample
 ├── datasets/
 │   └── dataset_guide.md                 # How to get NanoAOD samples
 ├── solutions/                           # Hints for the excercises

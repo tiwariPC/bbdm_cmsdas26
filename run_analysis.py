@@ -8,8 +8,10 @@ Usage:
   python run_analysis.py --full --year 2017   # full analysis, 2017
   python run_analysis.py --full -o output_2017.coffea
 
-Output is saved as a pickle in the output/ directory: dict of dataset_name -> accumulator
-(histograms, cutflow). Load in a notebook from output/output_2017.pkl or output/output_2017_full.pkl.
+Output is saved as a pickle in the output/ directory: by default a dict of merged physics groups
+(data, DYJets, ZJets, WJets, Top, STop, DIBOSON, SMH, signal) -> accumulator (histograms, cutflow).
+Use --per-dataset for one entry per YAML dataset (legacy). Load in a notebook from
+output/output_2017.pkl or output/output_2017_full.pkl.
 """
 
 import argparse
@@ -30,6 +32,11 @@ def main():
                         help="Output file (default: output_2017.pkl or output_2017_full.pkl)")
     parser.add_argument("--max-files", type=int, default=None,
                         help="Max files per dataset (for testing full run)")
+    parser.add_argument(
+        "--per-dataset",
+        action="store_true",
+        help="Save one accumulator per YAML dataset (legacy). Default: merge into physics groups (data, DYJets, …).",
+    )
     args = parser.parse_args()
 
     # Config and file discovery
@@ -89,6 +96,12 @@ def main():
     if not results:
         print("No results.")
         sys.exit(1)
+
+    if not args.per_dataset:
+        from config.datasets_2017 import merge_processor_results_by_group
+
+        results = merge_processor_results_by_group(results)
+        print("Merged results keys:", list(results.keys()))
 
     # Save to output directory
     import pickle

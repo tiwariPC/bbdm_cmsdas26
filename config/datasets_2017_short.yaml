@@ -16,6 +16,55 @@ triggers:
   - HLT_IsoTkMu24
   - HLT_Photon200
 
+# Merged pickle output from run_analysis.py (default: merge ON; --per-dataset keeps one key per sample).
+# Keep merge_* in sync with datasets_2017_full.yaml. load_merge_config() reads BOTH YAMLs (full overrides short on conflicts).
+merge_groups: {}
+merge_prefix_rules:
+  - prefix: DYJetsToLL_M50_HT
+    group: DYJets
+  - prefix: ZJetsToNuNu_HT
+    group: ZJets
+  - prefix: WJetsToLNu_HT
+    group: WJets
+  - prefix: TT
+    group: Top
+  - prefix: ST_
+    group: STop
+  # Diboson (EOS / sample names often start WW_, WZ_, ZZ_)
+  - prefix: WW
+    group: DIBOSON
+  - prefix: WZ
+    group: DIBOSON
+  - prefix: ZZ
+    group: DIBOSON
+  # SMH: H→bb and associated production (longest prefixes first; matches YAML names & EOS dir names)
+  - prefix: ttHTobb_ttToSemiLep_M125
+    group: SMH
+  - prefix: ttHTobb_ttTo2L2Nu_M125
+    group: SMH
+  - prefix: WminusH_HToBB_WToQQ_M125
+    group: SMH
+  - prefix: WplusH_HToBB_WToLNu_M125
+    group: SMH
+  - prefix: ggZH_HToBB_ZToNuNu_M125
+    group: SMH
+  - prefix: ggZH_HToBB_ZToLL_M125
+    group: SMH
+  - prefix: ZH_HToBB_ZToNuNu_M125
+    group: SMH
+  - prefix: ZH_HToBB_ZToLL_M125
+    group: SMH
+  - prefix: ttHTobb_M125
+    group: SMH
+  - prefix: VBFHToBB_M-125
+    group: SMH
+  - prefix: VBFHToBB
+    group: SMH
+  - prefix: WminusH_HToBB
+    group: SMH
+  - prefix: ttHTobb
+    group: SMH
+
 data:
   - name: MET_Run2017B
     file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017B-02Apr2020-v1/00DCCA4E-F5F1-F84D-A6EC-2956ACAB6E02.root"

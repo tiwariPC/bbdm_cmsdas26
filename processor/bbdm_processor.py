@@ -95,7 +95,8 @@ class HistAccumulator(processor.AccumulatorABC):
 JET_PT_MIN = 30.0   # GeV
 JET_ETA_MAX = 2.4
 BTAG_WP_MEDIUM = 0.2783   # DeepFlavB medium working point (2017)
-MET_SR_MIN = 250.0  # GeV, signal region
+RECOIL_MIN = 250.0  # GeV, SR threshold on MET (named recoil for consistent naming with CR)
+MET_SR_MIN = RECOIL_MIN  # backward-compatible alias
 LEP_PT_MIN = 10.0   # GeV
 LEP_ETA_MAX = 2.5
 # Preselection: |Δp_T^miss(PF − calo)| (vector magnitude in transverse plane), GeV
@@ -230,12 +231,12 @@ class bbDMProcessor(processor.ProcessorABC):
         jet_pt_min=JET_PT_MIN,
         jet_eta_max=JET_ETA_MAX,
         btag_wp=BTAG_WP_MEDIUM,
-        met_sr_min=MET_SR_MIN,
+        recoil_min=RECOIL_MIN,
     ):
         self.jet_pt_min = jet_pt_min
         self.jet_eta_max = jet_eta_max
         self.btag_wp = btag_wp
-        self.met_sr_min = met_sr_min
+        self.recoil_min = recoil_min
 
         # Histogram definitions
         self._make_histograms()
@@ -258,12 +259,12 @@ class bbDMProcessor(processor.ProcessorABC):
             axis.Regular(60, 0, 600, name="met", label="MET [GeV]"),
             storage="weight",
         )
-        self._hist_met_sr = Hist(
-            axis.Regular(50, 200, 700, name="met_sr", label="MET (SR) [GeV]"),
+        self._hist_recoil = Hist(
+            axis.Regular(50, 200, 700, name="recoil", label="Recoil [GeV]"),
             storage="weight",
         )
-        self._hist_cos_theta_star_sr = Hist(
-            axis.Regular(25, 0, 1, name="cos_theta_star_sr", label="cos #theta* (SR)"),
+        self._hist_cos_theta_star = Hist(
+            axis.Regular(25, 0, 1, name="cos_theta_star", label="cos #theta*"),
             storage="weight",
         )
         self._hist_lead_jet_pt = Hist(
@@ -279,8 +280,8 @@ class bbDMProcessor(processor.ProcessorABC):
             "jet_mult": HistAccumulator(self._hist_jet_mult).identity(),
             "bjet_mult": HistAccumulator(self._hist_bjet_mult).identity(),
             "met": HistAccumulator(self._hist_met).identity(),
-            "met_sr": HistAccumulator(self._hist_met_sr).identity(),
-            "cos_theta_star_sr": HistAccumulator(self._hist_cos_theta_star_sr).identity(),
+            "recoil": HistAccumulator(self._hist_recoil).identity(),
+            "cos_theta_star": HistAccumulator(self._hist_cos_theta_star).identity(),
             "lead_jet_pt": HistAccumulator(self._hist_lead_jet_pt).identity(),
             "cutflow": defaultdict_accumulator(int),
         })
@@ -317,7 +318,7 @@ class bbDMProcessor(processor.ProcessorABC):
         met = events.MET.pt
         met_phi = events.MET.phi
         min_dphi = min_dphi_jets_met(good_jets, met_phi)
-        # PF vs Calo MET consistency: after Δφ(jet,MET), before MET_SR cut (skipped if CaloMET missing)
+        # PF vs Calo MET consistency: after Δφ(jet,MET), before recoil (MET) threshold (skipped if CaloMET missing)
         met_pf_calo_ok = met_pf_calo_consistency_mask(events)
         out["cutflow"]["met_pf_calo"] += int(
             ak.sum((njets >= 1) & (nbjets >= 2) & (nlep == 0) & (min_dphi > 0.5) & met_pf_calo_ok)
@@ -344,11 +345,11 @@ class bbDMProcessor(processor.ProcessorABC):
             (nlep == 0) &
             (min_dphi > 0.5) &
             met_pf_calo_ok &
-            (met > self.met_sr_min)
+            (met > self.recoil_min)
         )
         w_sr = weight[sr]
         out["cutflow"]["signal_region"] += int(ak.sum(sr))
-        out["met_sr"].fill(met_sr=ak.to_numpy(met[sr]), weight=ak.to_numpy(ak.fill_none(w_sr, 1.0)))
+        out["recoil"].fill(recoil=ak.to_numpy(met[sr]), weight=ak.to_numpy(ak.fill_none(w_sr, 1.0)))
         # cos(theta*) from two leading jets in SR
         good_jets_sr = good_jets[sr]
         jets_pad = ak.pad_none(good_jets_sr, 2)
@@ -358,8 +359,8 @@ class bbDMProcessor(processor.ProcessorABC):
         mask = has_two & ~ak.is_none(jet1)
         if ak.sum(mask) > 0:
             cts = cos_theta_star(jet0[mask], jet1[mask])
-            out["cos_theta_star_sr"].fill(
-                cos_theta_star_sr=ak.to_numpy(cts),
+            out["cos_theta_star"].fill(
+                cos_theta_star=ak.to_numpy(cts),
                 weight=ak.to_numpy(ak.fill_none(w_sr[mask], 1.0)),
             )
 
