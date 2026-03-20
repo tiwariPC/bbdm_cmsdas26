@@ -236,11 +236,11 @@ def get_one_file_per_group_from_yaml() -> Dict[str, List[str]]:
     if live:
         out: Dict[str, List[str]] = {}
         if "data" in live and live["data"]:
-            out["data"] = [live["data"][0]]
-        # background: pick first background file from any background entry
+            out["data"] = [random.choice(live["data"])]
+        # background: pick one random background file from any background entry
         bg_files = live.get("backgrounds", [])
         if bg_files:
-            out["background"] = [bg_files[0]]
+            out["background"] = [random.choice(bg_files)]
         if out:
             return out
     return get_one_file_per_group()

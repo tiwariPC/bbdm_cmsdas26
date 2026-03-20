@@ -98,6 +98,39 @@ BTAG_WP_MEDIUM = 0.2783   # DeepFlavB medium working point (2017)
 MET_SR_MIN = 250.0  # GeV, signal region
 LEP_PT_MIN = 10.0   # GeV
 LEP_ETA_MAX = 2.5
+# Preselection: |Δp_T^miss(PF − calo)| (vector magnitude in transverse plane), GeV
+MET_PF_CALO_DELTA_MAX = 0.5
+
+
+def met_pf_calo_delta(events):
+    """
+    Magnitude of the vector difference between PF MET and Calo MET (GeV).
+
+    Uses ``MET`` and ``CaloMET`` collections when ``CaloMET`` exists in the file.
+    Returns ``None`` if ``CaloMET`` is missing (e.g. custom skims) — callers skip the cut.
+    """
+    if not hasattr(events, "CaloMET"):
+        return None
+    calo = events.CaloMET
+    if not hasattr(calo, "pt") or not hasattr(calo, "phi"):
+        return None
+    met_pt, met_phi = events.MET.pt, events.MET.phi
+    c_pt, c_phi = calo.pt, calo.phi
+    dpx = met_pt * np.cos(met_phi) - c_pt * np.cos(c_phi)
+    dpy = met_pt * np.sin(met_phi) - c_pt * np.sin(c_phi)
+    return np.hypot(dpx, dpy)
+
+
+def met_pf_calo_consistency_mask(events, max_delta=MET_PF_CALO_DELTA_MAX):
+    """
+    ``True`` if |Δp_T^miss(PF − calo)| < max_delta. If CaloMET is unavailable, all events pass.
+
+    In this exercise, apply **after** min Δφ(jet, MET) and **before** the MET / recoil threshold.
+    """
+    d = met_pf_calo_delta(events)
+    if d is None:
+        return ak.ones_like(events.event, dtype=bool)
+    return d < max_delta
 
 
 def select_good_jets(events):
@@ -284,6 +317,11 @@ class bbDMProcessor(processor.ProcessorABC):
         met = events.MET.pt
         met_phi = events.MET.phi
         min_dphi = min_dphi_jets_met(good_jets, met_phi)
+        # PF vs Calo MET consistency: after Δφ(jet,MET), before MET_SR cut (skipped if CaloMET missing)
+        met_pf_calo_ok = met_pf_calo_consistency_mask(events)
+        out["cutflow"]["met_pf_calo"] += int(
+            ak.sum((njets >= 1) & (nbjets >= 2) & (nlep == 0) & (min_dphi > 0.5) & met_pf_calo_ok)
+        )
 
         # ----- Pre-selection: at least one jet (for plots) -----
         presel = njets >= 1
@@ -304,8 +342,9 @@ class bbDMProcessor(processor.ProcessorABC):
             (njets >= 1) &
             (nbjets >= 2) &
             (nlep == 0) &
-            (met > self.met_sr_min) &
-            (min_dphi > 0.5)
+            (min_dphi > 0.5) &
+            met_pf_calo_ok &
+            (met > self.met_sr_min)
         )
         w_sr = weight[sr]
         out["cutflow"]["signal_region"] += int(ak.sum(sr))
