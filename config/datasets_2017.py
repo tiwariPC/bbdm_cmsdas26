@@ -10,10 +10,12 @@ when full YAML globs match no files — e.g. use lxplus/eos access).
 """
 
 import os
+import re
 import random
+import glob
 from pathlib import Path
 import functools
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import yaml
 
@@ -182,6 +184,42 @@ def _load_yaml(path: str) -> Dict[str, Any]:
         return yaml.safe_load(f) or {}
 
 
+def _expand_short_entry_files(entry: Dict[str, Any], default_nfiles: int = 1) -> List[str]:
+    """
+    Expand a short-YAML entry into one or more concrete ROOT files.
+
+    Supports (in priority order):
+      - files: [path_or_glob, ...]
+      - file: path_or_glob
+    and optional:
+      - nfiles: int (max number of concrete files to keep after expansion)
+    """
+    patterns: List[str] = []
+    if isinstance(entry.get("files"), list):
+        patterns.extend([str(p) for p in entry.get("files", []) if p])
+    elif entry.get("file"):
+        patterns.append(str(entry.get("file")))
+
+    nfiles = int(entry.get("nfiles", default_nfiles))
+    out: List[str] = []
+    for p in patterns:
+        if any(ch in p for ch in ["*", "?", "["]):
+            out.extend(sorted(glob.glob(p, recursive=True)))
+        else:
+            out.append(p)
+
+    # De-duplicate while preserving order
+    seen = set()
+    uniq: List[str] = []
+    for f in out:
+        if f not in seen:
+            seen.add(f)
+            uniq.append(f)
+    if nfiles > 0:
+        uniq = uniq[:nfiles]
+    return uniq
+
+
 def load_live_datasets() -> Dict[str, List[str]]:
     """
     Load one-file-per-dataset config for the live exercise from YAML.
@@ -195,9 +233,7 @@ def load_live_datasets() -> Dict[str, List[str]]:
         entries = cfg.get(group, []) or []
         files: List[str] = []
         for entry in entries:
-            path = entry.get("file")
-            if path:
-                files.append(path)
+            files.extend(_expand_short_entry_files(entry, default_nfiles=1))
         if files:
             out[group] = files
     return out
@@ -223,6 +259,7 @@ def load_full_datasets() -> Dict[str, Dict[str, Any]]:
                 "group": group,
                 "files": entry.get("files", []),
                 "xsec": entry.get("xsec"),
+                "masspoint_xsec_pb": entry.get("masspoint_xsec_pb", {}),
                 "sumw": entry.get("sumw"),
                 "year": entry.get("year"),
                 "isData": entry.get("isData", False),
@@ -275,10 +312,10 @@ def get_short_fileset_and_labels() -> tuple:
         entries = cfg.get(group, []) or []
         for entry in entries:
             name = entry.get("name")
-            path = entry.get("file")
-            if not name or not path:
+            files = _expand_short_entry_files(entry, default_nfiles=1)
+            if not name or not files:
                 continue
-            fileset[name] = [path]
+            fileset[name] = files
             labels[name] = entry.get("label") or default_labels.get(name, name)
     return fileset, labels
 
@@ -304,11 +341,11 @@ def get_short_datasets_meta() -> Dict[str, Dict[str, Any]]:
         entries = cfg.get(group, []) or []
         for entry in entries:
             name = entry.get("name")
-            path = entry.get("file")
-            if not name or not path:
+            files = _expand_short_entry_files(entry, default_nfiles=1)
+            if not name or not files:
                 continue
             out[name] = {
-                "files": [path],
+                "files": files,
                 "label": entry.get("label") or default_labels.get(name, name),
                 "xsec": entry.get("xsec"),
                 "isData": bool(entry.get("isData", False)),
@@ -336,6 +373,77 @@ def get_full_filesets_from_yaml() -> Dict[str, List[str]]:
     if not filesets:
         return get_filesets(full=True)
     return filesets
+
+
+MASSPOINT_BRANCH_RE = re.compile(r"^GenModel_MH3_(\d+)_MH4_(\d+)_Mchi_(\d+)$")
+
+
+def parse_signal_masspoint_branch(branch_name: str) -> Optional[Tuple[int, int, int]]:
+    """
+    Parse branch like ``GenModel_MH3_600_MH4_350_Mchi_1`` -> (600, 350, 1).
+    Returns None for non-matching names.
+    """
+    m = MASSPOINT_BRANCH_RE.match(str(branch_name))
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2)), int(m.group(3))
+
+
+def signal_masspoint_key(mh3: int, mh4: int, mchi: int) -> str:
+    """Canonical output key for per-masspoint signal accumulators."""
+    return f"signal_mA{int(mh3)}_ma{int(mh4)}_mchi{int(mchi)}"
+
+
+def is_signal_key(name: str) -> bool:
+    """True for merged signal keys and per-masspoint signal keys."""
+    n = str(name)
+    return n == "signal" or n.startswith("signal_") or n.startswith("bbDM")
+
+
+def discover_signal_masspoint_branches(
+    files: Iterable[str],
+    treename: str = "Events",
+    target_mh3: int = 600,
+    target_mchi: int = 1,
+    max_files_to_scan: Optional[int] = None,
+) -> List[Tuple[str, str]]:
+    """
+    Discover available signal masspoint branches from signal files.
+
+    Returns
+    -------
+    list[tuple[str, str]]
+        Sorted list of (output_key, branch_name), e.g.
+        ``[("signal_mA600_ma200_mchi1", "GenModel_MH3_600_MH4_200_Mchi_1"), ...]``
+    """
+    try:
+        import uproot
+    except ImportError as exc:
+        raise RuntimeError("uproot is required to discover signal masspoint branches") from exc
+
+    discovered: Dict[int, str] = {}
+    scanned = 0
+    for path in files:
+        if max_files_to_scan is not None and scanned >= max_files_to_scan:
+            break
+        scanned += 1
+        try:
+            with uproot.open(f"{path}:{treename}") as tree:
+                keys = tree.keys()
+        except Exception:
+            continue
+        for b in keys:
+            parsed = parse_signal_masspoint_branch(str(b))
+            if not parsed:
+                continue
+            mh3, mh4, mchi = parsed
+            if mh3 == int(target_mh3) and mchi == int(target_mchi):
+                discovered[mh4] = str(b)
+
+    out: List[Tuple[str, str]] = []
+    for mh4 in sorted(discovered):
+        out.append((signal_masspoint_key(target_mh3, mh4, target_mchi), discovered[mh4]))
+    return out
 
 
 # --- Merged processor output (run_analysis.py) --------------------------------
@@ -382,7 +490,8 @@ def _merged_sample_key_heuristic(dataset_name: str) -> str:
         return "STop"
     if n in ("WW", "WZ", "ZZ"):
         return "DIBOSON"
-    if n.startswith("bbDM"):
+    # Keep split signal keys (signal_*) as-is; collapse only legacy bbDM dataset names.
+    if n == "signal" or n.startswith("bbDM"):
         return "signal"
     if n.startswith(("ttH", "ggZH", "ZH_", "WminusH", "WplusH")):
         return "SMH"
@@ -531,12 +640,12 @@ def data_and_bkg_keys(results: Dict[str, Any]) -> tuple:
     keys = list(results.keys())
     if is_merged_results_format(results):
         data_keys = ["data"]
-        bkg_keys = [k for k in keys if k not in ("data", "signal")]
+        bkg_keys = [k for k in keys if (k != "data") and (not is_signal_key(k))]
         return data_keys, bkg_keys
     data_keys = [
         d
         for d in keys
         if ("Run2017" in d) or ("Single" in d) or d.startswith("MET_")
     ]
-    bkg_keys = [d for d in keys if d not in data_keys]
+    bkg_keys = [d for d in keys if (d not in data_keys) and (not is_signal_key(d))]
     return data_keys, bkg_keys

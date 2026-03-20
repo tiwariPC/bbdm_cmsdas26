@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 # Source the LCG environment
 source /cvmfs/sft.cern.ch/lcg/views/LCG_105_swan/x86_64-el9-gcc13-opt/setup.sh
 
@@ -7,5 +9,12 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_105_swan/x86_64-el9-gcc13-opt/setup.sh
 echo "Python path: $(which python3)"
 python3 --version
 
-# Run your analysis
-python3 run_analysis.py --full --year 2017 -o output_2017_full.pkl
+DATASET="${1:-}"
+if [ -z "${DATASET}" ]; then
+  echo "ERROR: missing dataset argument"
+  exit 2
+fi
+
+echo "Running dataset: ${DATASET}"
+# One shard output per dataset; keep per-dataset format for robust post-merge.
+python3 run_analysis.py --full --year 2017 --dataset "${DATASET}" --per-dataset -o "shards/${DATASET}.pkl"

@@ -455,6 +455,20 @@ signal:
     files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/bbDM_2HDMa_LO_5f_TuneCP3_13TeV_madgraph_pythia8/**/*.root"
     xsec: null
+    # Per-masspoint cross sections (pb) for randomized signal branches:
+    #   signal_mA600_ma{ma}_mchi1  <-> GenModel_MH3_600_MH4_{ma}_Mchi_1
+    masspoint_xsec_pb:
+      ma_10_mA_600: 0.91120
+      ma_50_mA_600: 0.62520
+      ma_100_mA_600: 0.4232
+      ma_150_mA_600: 0.282800
+      ma_200_mA_600: 0.1880
+      ma_250_mA_600: 0.12550
+      ma_300_mA_600: 0.085840
+      ma_350_mA_600: 0.061830
+      ma_400_mA_600: 0.045220
+      ma_450_mA_600: 0.034210
+      ma_500_mA_600: 0.0257900
     sumw: null
     year: 2017
     isData: false

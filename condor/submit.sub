@@ -1,13 +1,16 @@
 # Condor submit file for bbDM full analysis (2017)
-# Usage: from project root:  condor_submit condor/submit_condor.sub
+# Usage: from project root:  condor_submit condor/submit.sub
 # The job runs in the directory from which you submit; input files are copied there.
 # Requires: Python with coffea, uproot, awkward (e.g. lxplus or conda env).
 
 universe = vanilla
 executable = condor/execute.sh
+arguments = $(dataset)
 should_transfer_files = YES
 transfer_input_files = run_analysis.py, config, processor, condor/execute.sh
-transfer_output_files = output/output_2017_full.pkl
+transfer_output_files = output/shards/$(dataset).pkl
+# HTCondor may flatten returned paths; remap by basename into output/shards/.
+transfer_output_remaps = "$(dataset).pkl=output/shards/$(dataset).pkl"
 when_to_transfer_output = ON_EXIT
 output = condor_out_$(Cluster)_$(Process).out
 error = condor_err_$(Cluster)_$(Process).err
@@ -17,5 +20,5 @@ request_cpus = 8
 +JobBatchName = "bbdm_2017_full"
 +JobFlavour = "testmatch"
 
-# Submit from project root so initialdir = project root (where run_analysis.py will be)
-queue 1
+# Submit one job per dataset listed in condor/datasets_2017_full.txt
+queue dataset from condor/datasets_2017_full.txt
