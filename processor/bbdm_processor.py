@@ -103,6 +103,11 @@ LEP_ETA_MAX = 2.5
 #   SR: | pTmiss(PF)/pTmiss(calo) - 1 |
 #   CR: | pTmiss(PF)/U(calo) - 1 |
 MET_PF_CALO_DELTA_MAX = 0.5
+REGION_NAMES = ("sr", "zecr", "zmucr", "tecr", "tmucr")
+LEAD_JET_PT_MIN_CR = 100.0
+Z_CR_MLL_LO, Z_CR_MLL_HI = 70.0, 110.0
+LEAD_LEP_PT_CR = 30.0
+TOP_CR_MT_MAX = 160.0
 
 
 def met_pf_calo_delta_sr(events):
@@ -335,7 +340,13 @@ class bbDMProcessor(processor.ProcessorABC):
 
     def _make_histograms(self):
         """Define all histograms (same structure for each dataset)."""
+        reg_ax = axis.StrCategory(REGION_NAMES, name="region")
         self._hist_jet_pt = Hist(
+            axis.Regular(50, 0, 500, name="jet_pt", label="Jet p$_T$ [GeV]"),
+            storage="weight",
+        )
+        self._hist_jet_pt_by_region = Hist(
+            reg_ax,
             axis.Regular(50, 0, 500, name="jet_pt", label="Jet p$_T$ [GeV]"),
             storage="weight",
         )
@@ -343,7 +354,17 @@ class bbDMProcessor(processor.ProcessorABC):
             axis.Regular(15, 0, 15, name="njet", label="Jet multiplicity"),
             storage="weight",
         )
+        self._hist_jet_mult_by_region = Hist(
+            reg_ax,
+            axis.Regular(15, 0, 15, name="njet", label="Jet multiplicity"),
+            storage="weight",
+        )
         self._hist_bjet_mult = Hist(
+            axis.Regular(6, 0, 6, name="nbjet", label="b-jet multiplicity"),
+            storage="weight",
+        )
+        self._hist_bjet_mult_by_region = Hist(
+            reg_ax,
             axis.Regular(6, 0, 6, name="nbjet", label="b-jet multiplicity"),
             storage="weight",
         )
@@ -351,7 +372,17 @@ class bbDMProcessor(processor.ProcessorABC):
             axis.Regular(60, 0, 600, name="met", label="MET [GeV]"),
             storage="weight",
         )
+        self._hist_met_by_region = Hist(
+            reg_ax,
+            axis.Regular(60, 0, 600, name="met", label="MET [GeV]"),
+            storage="weight",
+        )
         self._hist_recoil = Hist(
+            axis.Variable([250, 300, 400, 550, 1000], name="recoil", label="Recoil [GeV]"),
+            storage="weight",
+        )
+        self._hist_recoil_by_region = Hist(
+            reg_ax,
             axis.Variable([250, 300, 400, 550, 1000], name="recoil", label="Recoil [GeV]"),
             storage="weight",
         )
@@ -359,7 +390,17 @@ class bbDMProcessor(processor.ProcessorABC):
             axis.Regular(4, 0, 1, name="cos_theta_star", label="cos #theta*"),
             storage="weight",
         )
+        self._hist_cos_theta_star_by_region = Hist(
+            reg_ax,
+            axis.Regular(4, 0, 1, name="cos_theta_star", label="cos #theta*"),
+            storage="weight",
+        )
         self._hist_lead_jet_pt = Hist(
+            axis.Regular(50, 0, 500, name="lead_jet_pt", label="Leading jet p$_T$ [GeV]"),
+            storage="weight",
+        )
+        self._hist_lead_jet_pt_by_region = Hist(
+            reg_ax,
             axis.Regular(50, 0, 500, name="lead_jet_pt", label="Leading jet p$_T$ [GeV]"),
             storage="weight",
         )
@@ -367,7 +408,17 @@ class bbDMProcessor(processor.ProcessorABC):
             axis.Regular(6, 0, 6, name="nlep", label="Lepton multiplicity"),
             storage="weight",
         )
+        self._hist_nlep_by_region = Hist(
+            reg_ax,
+            axis.Regular(6, 0, 6, name="nlep", label="Lepton multiplicity"),
+            storage="weight",
+        )
         self._hist_min_dphi_jets_met = Hist(
+            axis.Regular(32, 0, 3.2, name="min_dphi_jets_met", label="min #Delta#phi(jet, MET)"),
+            storage="weight",
+        )
+        self._hist_min_dphi_jets_met_by_region = Hist(
+            reg_ax,
             axis.Regular(32, 0, 3.2, name="min_dphi_jets_met", label="min #Delta#phi(jet, MET)"),
             storage="weight",
         )
@@ -375,7 +426,17 @@ class bbDMProcessor(processor.ProcessorABC):
             axis.Regular(40, 0, 2.0, name="met_pf_calo_delta", label="|pTmiss(PF)/pTmiss(calo) - 1|"),
             storage="weight",
         )
+        self._hist_met_pf_calo_delta_by_region = Hist(
+            reg_ax,
+            axis.Regular(40, 0, 2.0, name="met_pf_calo_delta", label="|pTmiss(PF)/pTmiss(calo) - 1|"),
+            storage="weight",
+        )
         self._hist_recoil_all = Hist(
+            axis.Regular(80, 0, 1000, name="recoil_all", label="Recoil [GeV]"),
+            storage="weight",
+        )
+        self._hist_recoil_all_by_region = Hist(
+            reg_ax,
             axis.Regular(80, 0, 1000, name="recoil_all", label="Recoil [GeV]"),
             storage="weight",
         )
@@ -385,16 +446,27 @@ class bbDMProcessor(processor.ProcessorABC):
         """Initial accumulator: all histograms empty; merge-safe for chunked processing."""
         return dict_accumulator({
             "jet_pt": HistAccumulator(self._hist_jet_pt).identity(),
+            "jet_pt_by_region": HistAccumulator(self._hist_jet_pt_by_region).identity(),
             "jet_mult": HistAccumulator(self._hist_jet_mult).identity(),
+            "jet_mult_by_region": HistAccumulator(self._hist_jet_mult_by_region).identity(),
             "bjet_mult": HistAccumulator(self._hist_bjet_mult).identity(),
+            "bjet_mult_by_region": HistAccumulator(self._hist_bjet_mult_by_region).identity(),
             "met": HistAccumulator(self._hist_met).identity(),
+            "met_by_region": HistAccumulator(self._hist_met_by_region).identity(),
             "recoil": HistAccumulator(self._hist_recoil).identity(),
+            "recoil_by_region": HistAccumulator(self._hist_recoil_by_region).identity(),
             "cos_theta_star": HistAccumulator(self._hist_cos_theta_star).identity(),
+            "cos_theta_star_by_region": HistAccumulator(self._hist_cos_theta_star_by_region).identity(),
             "lead_jet_pt": HistAccumulator(self._hist_lead_jet_pt).identity(),
+            "lead_jet_pt_by_region": HistAccumulator(self._hist_lead_jet_pt_by_region).identity(),
             "nlep": HistAccumulator(self._hist_nlep).identity(),
+            "nlep_by_region": HistAccumulator(self._hist_nlep_by_region).identity(),
             "min_dphi_jets_met": HistAccumulator(self._hist_min_dphi_jets_met).identity(),
+            "min_dphi_jets_met_by_region": HistAccumulator(self._hist_min_dphi_jets_met_by_region).identity(),
             "met_pf_calo_delta": HistAccumulator(self._hist_met_pf_calo_delta).identity(),
+            "met_pf_calo_delta_by_region": HistAccumulator(self._hist_met_pf_calo_delta_by_region).identity(),
             "recoil_all": HistAccumulator(self._hist_recoil_all).identity(),
+            "recoil_all_by_region": HistAccumulator(self._hist_recoil_all_by_region).identity(),
             "cutflow": defaultdict_accumulator(int),
         })
 
@@ -424,11 +496,18 @@ class bbDMProcessor(processor.ProcessorABC):
         # ----- Trigger: OR of analysis HLT paths (first cut, applied to data and MC) -----
         trigger_list = get_trigger_list()
         hlt_fields = set(events.HLT.fields) if hasattr(events, "HLT") and hasattr(events.HLT, "fields") else set()
-        trigger_mask = ak.ones_like(events.event, dtype=bool)
+        trigger_mask = ak.zeros_like(events.event, dtype=bool)
         if hlt_fields:
             for tname in trigger_list:
                 if tname in hlt_fields:
                     trigger_mask = trigger_mask | events.HLT[tname]
+            # Some signal files can have sparse/non-matching trigger bits.
+            # For signal-only processing, keep all events in that case.
+            if int(ak.sum(trigger_mask)) == 0 and str(dataset).startswith(("bbDM", "signal_")):
+                trigger_mask = ak.ones_like(events.event, dtype=bool)
+        else:
+            # If no HLT information exists in this schema, do not drop events.
+            trigger_mask = ak.ones_like(events.event, dtype=bool)
         out["cutflow"]["trigger"] += int(ak.sum(trigger_mask))
         events = events[trigger_mask]
 
@@ -453,15 +532,19 @@ class bbDMProcessor(processor.ProcessorABC):
         met_pf_calo_ok = met_pf_calo_mask(events)
 
         # ----- Cumulative cutflow -----
-        cut_njet = njets >= 1
-        cut_nbjet = cut_njet & (nbjets >= 2)
+        # SR jet phase space: exactly 2-3 jets and exactly 2 b-jets.
+        cut_njet = (njets >= 2) & (njets <= 3)
+        cut_nbjet = cut_njet & (nbjets == 2)
         cut_lepveto = cut_nbjet & (nlep == 0)
         cut_min_dphi = cut_lepveto & (min_dphi > 0.5)
         cut_met_pf_calo = cut_min_dphi & met_pf_calo_ok
         cut_recoil = cut_met_pf_calo & (recoil_all > self.recoil_min)
 
+        # Keep legacy keys for backward compatibility and add explicit SR keys.
         out["cutflow"]["njet_ge1"] += int(ak.sum(cut_njet))
         out["cutflow"]["nbjet_ge2"] += int(ak.sum(cut_nbjet))
+        out["cutflow"]["njet_2to3"] += int(ak.sum(cut_njet))
+        out["cutflow"]["nbjet_eq2"] += int(ak.sum(cut_nbjet))
         out["cutflow"]["lepton_veto"] += int(ak.sum(cut_lepveto))
         out["cutflow"]["min_dphi"] += int(ak.sum(cut_min_dphi))
         out["cutflow"]["met_pf_calo"] += int(ak.sum(cut_met_pf_calo))
@@ -514,6 +597,192 @@ class bbDMProcessor(processor.ProcessorABC):
                 cos_theta_star=ak.to_numpy(cts),
                 weight=ak.to_numpy(ak.fill_none(w_sr[mask], 1.0)),
             )
+
+        # ----- Control regions (match Session 3 definitions) -----
+        lead_jet_pt = ak.fill_none(ak.firsts(good_jets.pt), 0.0)
+
+        # Z->ll control regions (tight opposite-sign same-flavor dileptons)
+        tight_ele = select_tight_electrons(events)
+        tight_mu = select_tight_muons(events)
+        nele_t = ak.count(tight_ele.pt, axis=1)
+        nmu_t = ak.count(tight_mu.pt, axis=1)
+        two_ee = (nele_t == 2) & (nmu_t == 0) & (ak.sum(tight_ele.charge, axis=1) == 0)
+        two_mumu = (nele_t == 0) & (nmu_t == 2) & (ak.sum(tight_mu.charge, axis=1) == 0)
+        tight_ele_pad = ak.pad_none(tight_ele, 2)
+        tight_mu_pad = ak.pad_none(tight_mu, 2)
+        pair_ee = tight_ele_pad[:, 0] + tight_ele_pad[:, 1]
+        pair_mumu = tight_mu_pad[:, 0] + tight_mu_pad[:, 1]
+        sum_lep_px_z = ak.where(
+            two_ee,
+            ak.fill_none(pair_ee.pt, 0.0) * np.cos(ak.fill_none(pair_ee.phi, 0.0)),
+            ak.where(
+                two_mumu,
+                ak.fill_none(pair_mumu.pt, 0.0) * np.cos(ak.fill_none(pair_mumu.phi, 0.0)),
+                ak.full_like(met, 0.0),
+            ),
+        )
+        sum_lep_py_z = ak.where(
+            two_ee,
+            ak.fill_none(pair_ee.pt, 0.0) * np.sin(ak.fill_none(pair_ee.phi, 0.0)),
+            ak.where(
+                two_mumu,
+                ak.fill_none(pair_mumu.pt, 0.0) * np.sin(ak.fill_none(pair_mumu.phi, 0.0)),
+                ak.full_like(met, 0.0),
+            ),
+        )
+        recoil_z = recoil_pt(met, met_phi, sum_lep_px_z, sum_lep_py_z)
+        met_pf_calo_ok_z = met_pf_calo_mask(events, mode="cr", sum_lep_px=sum_lep_px_z, sum_lep_py=sum_lep_py_z)
+        presel_z = (njets >= 1) & (lead_jet_pt > LEAD_JET_PT_MIN_CR) & (min_dphi > 0.5) & met_pf_calo_ok_z & (recoil_z > RECOIL_MIN)
+        mll_ee = ak.where(two_ee, ak.fill_none(pair_ee.mass, -1.0), ak.full_like(met, -1.0))
+        mll_mumu = ak.where(two_mumu, ak.fill_none(pair_mumu.mass, -1.0), ak.full_like(met, -1.0))
+        lead_lep_pt_z = ak.where(
+            two_ee,
+            ak.max(tight_ele.pt, axis=1),
+            ak.where(two_mumu, ak.max(tight_mu.pt, axis=1), ak.full_like(met, 0.0)),
+        )
+        zecr = presel_z & two_ee & (lead_lep_pt_z > LEAD_LEP_PT_CR) & (mll_ee > Z_CR_MLL_LO) & (mll_ee < Z_CR_MLL_HI)
+        zmucr = presel_z & two_mumu & (lead_lep_pt_z > LEAD_LEP_PT_CR) & (mll_mumu > Z_CR_MLL_LO) & (mll_mumu < Z_CR_MLL_HI)
+        zecr_twolep = presel_z & two_ee
+        zecr_leadlep = zecr_twolep & (lead_lep_pt_z > LEAD_LEP_PT_CR)
+        zecr_mll = zecr_leadlep & (mll_ee > Z_CR_MLL_LO) & (mll_ee < Z_CR_MLL_HI)
+        zmucr_twolep = presel_z & two_mumu
+        zmucr_leadlep = zmucr_twolep & (lead_lep_pt_z > LEAD_LEP_PT_CR)
+        zmucr_mll = zmucr_leadlep & (mll_mumu > Z_CR_MLL_LO) & (mll_mumu < Z_CR_MLL_HI)
+
+        # Top control regions (single tight lepton)
+        one_ele = (nele_t == 1) & (nmu_t == 0)
+        one_mu = (nele_t == 0) & (nmu_t == 1)
+        lep_pt_t = ak.fill_none(
+            ak.where(one_ele, ak.firsts(tight_ele.pt), ak.where(one_mu, ak.firsts(tight_mu.pt), ak.full_like(met, 0.0))),
+            0.0,
+        )
+        lep_phi_t = ak.fill_none(
+            ak.where(one_ele, ak.firsts(tight_ele.phi), ak.where(one_mu, ak.firsts(tight_mu.phi), ak.full_like(met, 0.0))),
+            0.0,
+        )
+        sum_lep_px_t = lep_pt_t * np.cos(lep_phi_t)
+        sum_lep_py_t = lep_pt_t * np.sin(lep_phi_t)
+        recoil_t = recoil_pt(met, met_phi, sum_lep_px_t, sum_lep_py_t)
+        met_pf_calo_ok_t = met_pf_calo_mask(events, mode="cr", sum_lep_px=sum_lep_px_t, sum_lep_py=sum_lep_py_t)
+        presel_t = (njets >= 1) & (lead_jet_pt > LEAD_JET_PT_MIN_CR) & (min_dphi > 0.5) & met_pf_calo_ok_t & (recoil_t > RECOIL_MIN)
+        dphi_lep_met = np.abs(ak.to_numpy(met_phi) - ak.to_numpy(lep_phi_t))
+        dphi_lep_met = np.where(dphi_lep_met > np.pi, 2 * np.pi - dphi_lep_met, dphi_lep_met)
+        mt = ak.Array(np.sqrt(2.0 * ak.to_numpy(met) * ak.to_numpy(lep_pt_t) * (1.0 - np.cos(dphi_lep_met))))
+        n_non_b = njets - nbjets
+        common_t = presel_t & (lep_pt_t > LEAD_LEP_PT_CR) & (mt < TOP_CR_MT_MAX) & (nbjets >= 2) & (n_non_b >= 2)
+        tecr = common_t & one_ele
+        tmucr = common_t & one_mu
+        tecr_onelep = presel_t & one_ele
+        tecr_leppt = tecr_onelep & (lep_pt_t > LEAD_LEP_PT_CR)
+        tecr_mt = tecr_leppt & (mt < TOP_CR_MT_MAX)
+        tecr_nb = tecr_mt & (nbjets >= 2)
+        tecr_nnonb = tecr_nb & (n_non_b >= 2)
+        tmucr_onelep = presel_t & one_mu
+        tmucr_leppt = tmucr_onelep & (lep_pt_t > LEAD_LEP_PT_CR)
+        tmucr_mt = tmucr_leppt & (mt < TOP_CR_MT_MAX)
+        tmucr_nb = tmucr_mt & (nbjets >= 2)
+        tmucr_nnonb = tmucr_nb & (n_non_b >= 2)
+
+        out["cutflow"]["zecr"] += int(ak.sum(zecr))
+        out["cutflow"]["zmucr"] += int(ak.sum(zmucr))
+        out["cutflow"]["tecr"] += int(ak.sum(tecr))
+        out["cutflow"]["tmucr"] += int(ak.sum(tmucr))
+        out["cutflow"]["zecr_presel"] += int(ak.sum(presel_z))
+        out["cutflow"]["zecr_twolep"] += int(ak.sum(zecr_twolep))
+        out["cutflow"]["zecr_leadlep"] += int(ak.sum(zecr_leadlep))
+        out["cutflow"]["zecr_mll"] += int(ak.sum(zecr_mll))
+        out["cutflow"]["zmucr_presel"] += int(ak.sum(presel_z))
+        out["cutflow"]["zmucr_twolep"] += int(ak.sum(zmucr_twolep))
+        out["cutflow"]["zmucr_leadlep"] += int(ak.sum(zmucr_leadlep))
+        out["cutflow"]["zmucr_mll"] += int(ak.sum(zmucr_mll))
+        out["cutflow"]["tecr_presel"] += int(ak.sum(presel_t))
+        out["cutflow"]["tecr_onelep"] += int(ak.sum(tecr_onelep))
+        out["cutflow"]["tecr_leppt"] += int(ak.sum(tecr_leppt))
+        out["cutflow"]["tecr_mt"] += int(ak.sum(tecr_mt))
+        out["cutflow"]["tecr_nbjet"] += int(ak.sum(tecr_nb))
+        out["cutflow"]["tecr_nnonb"] += int(ak.sum(tecr_nnonb))
+        out["cutflow"]["tmucr_presel"] += int(ak.sum(presel_t))
+        out["cutflow"]["tmucr_onelep"] += int(ak.sum(tmucr_onelep))
+        out["cutflow"]["tmucr_leppt"] += int(ak.sum(tmucr_leppt))
+        out["cutflow"]["tmucr_mt"] += int(ak.sum(tmucr_mt))
+        out["cutflow"]["tmucr_nbjet"] += int(ak.sum(tmucr_nb))
+        out["cutflow"]["tmucr_nnonb"] += int(ak.sum(tmucr_nnonb))
+
+        region_masks = {
+            "sr": sr,
+            "zecr": zecr,
+            "zmucr": zmucr,
+            "tecr": tecr,
+            "tmucr": tmucr,
+        }
+        region_recoil = {
+            "sr": recoil_all,
+            "zecr": recoil_z,
+            "zmucr": recoil_z,
+            "tecr": recoil_t,
+            "tmucr": recoil_t,
+        }
+        region_delta = {
+            "sr": met_pf_calo_delta_sr(events),
+            "zecr": met_pf_calo_delta_cr(events, sum_lep_px_z, sum_lep_py_z),
+            "zmucr": met_pf_calo_delta_cr(events, sum_lep_px_z, sum_lep_py_z),
+            "tecr": met_pf_calo_delta_cr(events, sum_lep_px_t, sum_lep_py_t),
+            "tmucr": met_pf_calo_delta_cr(events, sum_lep_px_t, sum_lep_py_t),
+        }
+
+        for reg, rmask in region_masks.items():
+            if int(ak.sum(rmask)) == 0:
+                continue
+            wr = ak.fill_none(weight[rmask], 1.0)
+            gj = good_jets[rmask]
+            nj = njets[rmask]
+            nb = nbjets[rmask]
+            met_r = met[rmask]
+            recoil_r = region_recoil[reg][rmask]
+            lead_pt_r = ak.fill_none(ak.firsts(gj.pt), 0.0)
+            nlep_r = nlep[rmask]
+            mindphi_r = min_dphi[rmask]
+            recoil_all_r = recoil_all[rmask]
+
+            out["jet_mult_by_region"].fill(region=reg, njet=ak.to_numpy(nj), weight=ak.to_numpy(wr))
+            out["bjet_mult_by_region"].fill(region=reg, nbjet=ak.to_numpy(nb), weight=ak.to_numpy(wr))
+            out["met_by_region"].fill(region=reg, met=ak.to_numpy(met_r), weight=ak.to_numpy(wr))
+            out["recoil_by_region"].fill(region=reg, recoil=ak.to_numpy(recoil_r), weight=ak.to_numpy(wr))
+            out["lead_jet_pt_by_region"].fill(region=reg, lead_jet_pt=ak.to_numpy(lead_pt_r), weight=ak.to_numpy(wr))
+            out["nlep_by_region"].fill(region=reg, nlep=ak.to_numpy(nlep_r), weight=ak.to_numpy(wr))
+            out["min_dphi_jets_met_by_region"].fill(
+                region=reg, min_dphi_jets_met=ak.to_numpy(mindphi_r), weight=ak.to_numpy(wr)
+            )
+            out["recoil_all_by_region"].fill(region=reg, recoil_all=ak.to_numpy(recoil_all_r), weight=ak.to_numpy(wr))
+
+            dreg = region_delta.get(reg)
+            if dreg is not None:
+                out["met_pf_calo_delta_by_region"].fill(
+                    region=reg,
+                    met_pf_calo_delta=ak.to_numpy(dreg[rmask]),
+                    weight=ak.to_numpy(wr),
+                )
+
+            if int(ak.sum(nj > 0)) > 0:
+                wj = ak.flatten(ak.broadcast_arrays(wr, gj.pt)[0])
+                out["jet_pt_by_region"].fill(
+                    region=reg,
+                    jet_pt=ak.to_numpy(ak.flatten(gj.pt)),
+                    weight=ak.to_numpy(ak.fill_none(wj, 1.0)),
+                )
+
+            jets_pad_r = ak.pad_none(gj, 2)
+            j0_r = jets_pad_r[:, 0]
+            j1_r = jets_pad_r[:, 1]
+            has_two_r = ak.num(gj) >= 2
+            m2 = has_two_r & ~ak.is_none(j1_r)
+            if ak.sum(m2) > 0:
+                cts_r = cos_theta_star(j0_r[m2], j1_r[m2])
+                out["cos_theta_star_by_region"].fill(
+                    region=reg,
+                    cos_theta_star=ak.to_numpy(cts_r),
+                    weight=ak.to_numpy(ak.fill_none(wr[m2], 1.0)),
+                )
 
         return out
 
