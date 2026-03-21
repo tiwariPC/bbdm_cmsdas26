@@ -1,4 +1,8 @@
-MET_Run2017
+MET_Run2017B
+MET_Run2017C
+MET_Run2017D
+MET_Run2017E
+MET_Run2017F
 DYJetsToLL_M50_HT100to200
 DYJetsToLL_M50_HT200to400
 DYJetsToLL_M50_HT400to600
@@ -40,3 +44,8 @@ WplusH_HToBB_WToLNu_M125
 ZH_HToBB_ZToLL_M125
 ZH_HToBB_ZToNuNu_M125
 bbDM_2HDMa_LO_5f
+SingleElectron_Run2017B
+SingleElectron_Run2017C
+SingleElectron_Run2017D
+SingleElectron_Run2017E
+SingleElectron_Run2017F

@@ -69,18 +69,50 @@ merge_prefix_rules:
     group: SMH
 
 data:
-  - name: MET_Run2017
+  - name: MET_Run2017B
     files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017B-02Apr2020-v1/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: true
+    label: "Data MET 2017B"
+
+  - name: MET_Run2017C
+    files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017C-02Apr2020-v1/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: true
+    label: "Data MET 2017C"
+
+  - name: MET_Run2017D
+    files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017D-02Apr2020-v1/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: true
+    label: "Data MET 2017D"
+
+  - name: MET_Run2017E
+    files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017E-02Apr2020-v1/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: true
+    label: "Data MET 2017E"
+
+  - name: MET_Run2017F
+    files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017F-02Apr2020-v1/*.root"
     xsec: null
     sumw: null
     year: 2017
     isData: true
-    label: "Data MET 2017"
+    label: "Data MET 2017F"
 
 backgrounds:
   # DYJetsToLL HT-binned (xsec in pb)

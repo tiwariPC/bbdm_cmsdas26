@@ -249,6 +249,9 @@ def load_full_datasets() -> Dict[str, Dict[str, Any]]:
     """
     cfg = _load_yaml(FULL_YAML)
     out: Dict[str, Dict[str, Any]] = {}
+    data_entries = cfg.get("data", []) or []
+    has_singleelectron = any(str(e.get("name", "")).startswith("SingleElectron_Run2017") for e in data_entries)
+    met_entries = [e for e in data_entries if str(e.get("name", "")).startswith("MET_Run2017")]
     for group in ("data", "backgrounds", "signal"):
         entries = cfg.get(group, []) or []
         for entry in entries:
@@ -266,6 +269,26 @@ def load_full_datasets() -> Dict[str, Dict[str, Any]]:
                 "label": entry.get("label", name),
                 # Optional: merged pickle group (see merge_groups / merge_prefix_rules in YAML)
                 "merge_as": entry.get("merge_as"),
+            }
+    # Backward-compatible convenience: if only MET data was configured, also expose
+    # SingleElectron data with mirrored Run2017 file globs (works for combined and per-era names).
+    if (not has_singleelectron) and met_entries:
+        for met_entry in met_entries:
+            met_name = str(met_entry.get("name", ""))
+            suffix = met_name.replace("MET_Run2017", "")
+            se_name = f"SingleElectron_Run2017{suffix}"
+            met_files = met_entry.get("files", []) or []
+            se_files = [f.replace("MET-Run2017", "SingleElectron-Run2017") for f in met_files]
+            out[se_name] = {
+                "group": "data",
+                "files": se_files,
+                "xsec": None,
+                "masspoint_xsec_pb": {},
+                "sumw": None,
+                "year": met_entry.get("year", 2017),
+                "isData": True,
+                "label": f"Data SingleElectron 2017{suffix}",
+                "merge_as": met_entry.get("merge_as"),
             }
     return out
 

@@ -8,13 +8,13 @@ executable = condor/execute.sh
 arguments = $(dataset)
 should_transfer_files = YES
 transfer_input_files = run_analysis.py, config, processor, condor/execute.sh
-transfer_output_files = output/shards/$(dataset).pkl
+# transfer_output_files = output/shards/$(dataset).pkl
 # HTCondor may flatten returned paths; remap by basename into output/shards/.
-transfer_output_remaps = "$(dataset).pkl=output/shards/$(dataset).pkl"
+# transfer_output_remaps = "$(dataset).pkl=output/shards/$(dataset).pkl"
 when_to_transfer_output = ON_EXIT
-output = condor_out_$(Cluster)_$(Process).out
-error = condor_err_$(Cluster)_$(Process).err
-log = condor_$(Cluster).log
+output = condor/logs/stdout_$(Cluster)_$(Process).out
+error = condor/logs/stderr_$(Cluster)_$(Process).err
+log = condor/stdlog_$(Cluster).log
 request_memory = 12000
 request_cpus = 8
 +JobBatchName = "bbdm_2017_full"
