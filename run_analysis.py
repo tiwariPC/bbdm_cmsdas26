@@ -13,6 +13,11 @@ Output is saved as a pickle in the output/ directory.
 - Default (merged output): structured bundle with ``metadata`` and ``samples``.
 - ``--per-dataset``: legacy per-dataset accumulator dict (used for Condor shards).
 Load in a notebook from output/output_2017.pkl or output/output_2017_full.pkl.
+
+Collision **data** only: certified lumisections (golden JSON) are **not** applied to MC
+or signal. When ``config/<golden JSON>`` exists (see ``get_golden_json_path``), or you set
+``BBDM_GOLDEN_JSON`` / ``--golden-json``, only filesets classified as data get ``LumiMask``.
+Use ``--no-golden-json`` to disable even for data.
 """
 
 import argparse
@@ -193,18 +198,43 @@ def main():
         action="store_true",
         help="Save one accumulator per YAML dataset (legacy). Default: merge into physics groups (data, DYJets, …).",
     )
+    parser.add_argument(
+        "--golden-json",
+        type=str,
+        default=None,
+        help="CMS golden JSON path for data lumi filtering (default: config file or BBDM_GOLDEN_JSON env).",
+    )
+    parser.add_argument(
+        "--no-golden-json",
+        action="store_true",
+        help="Do not apply golden JSON to data (debug only).",
+    )
     args = parser.parse_args()
 
     # Config and file discovery
     from config.datasets_2017 import (
         get_filesets,
         get_full_filesets_from_yaml,
+        get_golden_json_path,
+        is_data_dataset_name,
         PATH_2017,
         discover_signal_masspoint_branches,
     )
     signal_xsec_by_key = _load_signal_masspoint_xsecs()
     full_dataset_meta = _load_full_dataset_meta()
     lumi_pb = float(args.lumi_fb) * 1000.0
+
+    golden_json_resolved = None
+    if not args.no_golden_json:
+        golden_json_resolved = args.golden_json or get_golden_json_path(args.year)
+        if golden_json_resolved and not os.path.isfile(golden_json_resolved):
+            print(
+                f"Warning: golden JSON not found ({golden_json_resolved}); "
+                "data will not be lumi-filtered."
+            )
+            golden_json_resolved = None
+        elif golden_json_resolved:
+            print(f"Golden JSON (data datasets only): {golden_json_resolved}")
 
     # Prefer YAML if present for full analysis; fall back to dynamic discovery.
     if args.full:
@@ -288,11 +318,13 @@ def main():
                     out = runner(fileset, treename, proc)
                     results[dataset_name] = out
             else:
-                proc = bbDMProcessor()
+                ds_meta = full_dataset_meta.get(dataset_name, {})
+                # Golden JSON applies only to collision data (YAML isData or MET-/Single* dirname).
+                is_data = is_data_dataset_name(dataset_name, full_dataset_meta)
+                gj = golden_json_resolved if is_data else None
+                proc = bbDMProcessor(is_data=is_data, golden_json_path=gj)
                 out = runner(fileset, treename, proc)
                 # Normalize non-data MC datasets to lumi using YAML xsec and preselection event count.
-                ds_meta = full_dataset_meta.get(dataset_name, {})
-                is_data = bool(ds_meta.get("isData", False))
                 xsec_pb = ds_meta.get("xsec")
                 n_gen = float(out["cutflow"].get("all_events", 0))
                 if (not is_data) and (xsec_pb is not None) and (n_gen > 0.0):

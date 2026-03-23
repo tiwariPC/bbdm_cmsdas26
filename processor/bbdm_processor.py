@@ -7,9 +7,14 @@ bb + MET dark matter search, and fills histograms.
 Signal region: MET > 200 GeV, >= 2 b-jets, 0 isolated leptons.
 """
 
+import os
+import warnings
+from typing import Optional
+
 import numpy as np
 import awkward as ak
 from coffea import processor
+from coffea.lumi_tools import LumiMask
 from coffea.processor import dict_accumulator, defaultdict_accumulator
 from coffea.nanoevents import NanoEventsFactory, NanoAODSchema
 from hist import Hist, axis
@@ -19,9 +24,23 @@ from config.datasets_2017 import get_trigger_list
 NanoAODSchema.warn_missing_crossrefs = False
 
 
-def get_nanoevents(filepath, schemaclass=NanoAODSchema):
-    """Load one NanoAOD file and return events (same pattern as Session 1 load_events)."""
-    return NanoEventsFactory.from_root(filepath, schemaclass=schemaclass).events()
+def get_nanoevents(filepath, schemaclass=NanoAODSchema, max_entries=None):
+    """
+    Load one NanoAOD file and return events.
+
+    Parameters
+    ----------
+    filepath : str
+        Input ROOT file path.
+    schemaclass : coffea schema, optional
+        NanoAOD schema class.
+    max_entries : int or None, optional
+        If provided and >0, read at most this many entries from the file.
+    """
+    kwargs = {"schemaclass": schemaclass}
+    if max_entries is not None and int(max_entries) > 0:
+        kwargs["entry_stop"] = int(max_entries)
+    return NanoEventsFactory.from_root(filepath, **kwargs).events()
 
 
 class HistAccumulator(processor.AccumulatorABC):
@@ -319,6 +338,9 @@ def cos_theta_star(jet0, jet1):
 class bbDMProcessor(processor.ProcessorABC):
     """
     Coffea processor for bbDM search: object selection, event selection, histograms.
+
+    **Golden JSON (certified lumi)** is applied **only** when ``is_data=True`` and a valid
+    ``golden_json_path`` is given. MC and signal are never lumi-masked.
     """
 
     def __init__(
@@ -328,12 +350,30 @@ class bbDMProcessor(processor.ProcessorABC):
         btag_wp=BTAG_WP_MEDIUM,
         recoil_min=RECOIL_MIN,
         signal_mass_branch: str = None,
+        is_data: bool = False,
+        golden_json_path: Optional[str] = None,
     ):
         self.jet_pt_min = jet_pt_min
         self.jet_eta_max = jet_eta_max
         self.btag_wp = btag_wp
         self.recoil_min = recoil_min
         self.signal_mass_branch = signal_mass_branch
+        self.is_data = bool(is_data)
+        self._lumi_mask = None
+        if golden_json_path and not self.is_data:
+            warnings.warn(
+                "golden_json_path ignored: lumi mask is for collision data only (is_data=False).",
+                stacklevel=2,
+            )
+        if self.is_data and golden_json_path:
+            gjp = str(golden_json_path)
+            if os.path.isfile(gjp):
+                self._lumi_mask = LumiMask(gjp)
+            else:
+                warnings.warn(
+                    f"Golden JSON not found; data will not be lumi-filtered: {gjp}",
+                    stacklevel=2,
+                )
 
         # Histogram definitions
         self._make_histograms()
@@ -493,7 +533,19 @@ class bbDMProcessor(processor.ProcessorABC):
         else:
             out["cutflow"]["masspoint"] += int(len(events))
 
-        # ----- Trigger: OR of analysis HLT paths (first cut, applied to data and MC) -----
+        # ----- Data only: certified lumisections (golden JSON), before trigger -----
+        if self._lumi_mask is not None:
+            if "run" not in events.fields or "luminosityBlock" not in events.fields:
+                warnings.warn(
+                    "Data sample missing run/luminosityBlock; skipping golden JSON filter.",
+                    stacklevel=2,
+                )
+            else:
+                good_lumi = self._lumi_mask(events.run, events.luminosityBlock)
+                out["cutflow"]["golden_json"] += int(ak.sum(good_lumi))
+                events = events[good_lumi]
+
+        # ----- Trigger: OR of analysis HLT paths (applied to data and MC) -----
         trigger_list = get_trigger_list()
         hlt_fields = set(events.HLT.fields) if hasattr(events, "HLT") and hasattr(events.HLT, "fields") else set()
         trigger_mask = ak.zeros_like(events.event, dtype=bool)

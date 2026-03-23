@@ -24,12 +24,53 @@ BASE_PATH = "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026"
 YEAR = 2017
 PATH_2017 = os.path.join(BASE_PATH, str(YEAR))
 
+# Golden JSON (certified lumisections) for data — keep in config/ next to this file.
+# Official CMS JSON files are valid JSON despite a .txt extension.
+_CONFIG_DIR = Path(__file__).resolve().parent
+GOLDEN_JSON_2017_FILENAME = "Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_v1.txt"
+
+
+def get_golden_json_path(year: int = 2017) -> Optional[str]:
+    """
+    Path to the golden JSON used to filter data to certified (run, lumi) pairs.
+
+    Resolution order:
+
+    1. Environment variable ``BBDM_GOLDEN_JSON`` if that path exists.
+    2. For 2017: ``config/<GOLDEN_JSON_2017_FILENAME>`` if present.
+
+    Returns ``None`` if no file is found (``run_analysis`` will skip lumi masking).
+    """
+    env = os.environ.get("BBDM_GOLDEN_JSON", "").strip()
+    if env and os.path.isfile(env):
+        return os.path.abspath(env)
+    if int(year) == 2017:
+        p = _CONFIG_DIR / GOLDEN_JSON_2017_FILENAME
+        if p.is_file():
+            return str(p)
+    return None
+
+
 # Optional: group dataset dirs into categories for plotting.
 # Keys are short names (e.g. "data", "ttbar"); values are list of subdir name prefixes or full names.
 # If empty, all subdirs are treated as separate datasets (key = subdir name).
 DATA_PREFIXES = ("MET-", "SingleElectron-", "SingleMuon-")  # subdirs starting with these → "data"
 # Backgrounds: all other subdirs. Signal: add later to SIGNAL_PREFIXES or SIGNAL_DIRS.
 SIGNAL_PREFIXES = ()  # placeholder for when signal is added
+
+
+def is_data_dataset_name(dataset_name: str, yaml_meta_by_key: Dict[str, Any]) -> bool:
+    """
+    Whether a ``run_analysis.py`` fileset key is collision data.
+
+    Full YAML keys (e.g. ``MET_Run2017B``) are resolved via ``yaml_meta_by_key`` (``isData``).
+    One-file / EOS-discovery mode uses **directory names** (e.g. ``MET-Run2017B-02Apr2020-v1``)
+    that often do not appear in the YAML; those are inferred from ``DATA_PREFIXES``.
+    """
+    row = yaml_meta_by_key.get(str(dataset_name))
+    if row is not None:
+        return bool(row.get("isData", False))
+    return str(dataset_name).startswith(DATA_PREFIXES)
 
 
 def _list_dataset_dirs():
