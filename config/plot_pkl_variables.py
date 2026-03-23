@@ -52,6 +52,38 @@ DATA_KEY_CANDIDATES = (
 REGION_ORDER = ("sr", "zecr", "zmucr", "tecr", "tmucr")
 
 
+def _title_inside_axes(ax, text: str, loc: str = "upper left") -> None:
+    """
+    Show a title inside the plot area (axes coordinates) instead of matplotlib's axis title.
+    Keeps labels clear: default is upper-left (inside panel).
+    """
+    if loc == "upper left":
+        xy, ha, va = (0.02, 0.98), "left", "top"
+    elif loc == "upper right":
+        xy, ha, va = (0.98, 0.98), "right", "top"
+    elif loc == "lower left":
+        xy, ha, va = (0.02, 0.02), "left", "bottom"
+    else:
+        xy, ha, va = (0.5, 0.98), "center", "top"
+    ax.text(
+        xy[0],
+        xy[1],
+        text,
+        transform=ax.transAxes,
+        ha=ha,
+        va=va,
+        fontsize=10,
+        bbox=dict(
+            boxstyle="round,pad=0.35",
+            facecolor="white",
+            edgecolor="0.75",
+            alpha=0.92,
+            linewidth=0.8,
+        ),
+        zorder=25,
+    )
+
+
 def _apply_plot_style() -> None:
     if hep is not None:
         hep.style.use("CMS")
@@ -280,6 +312,7 @@ def _draw_stacked_panel(
     hist_key: str,
     names: Iterable[str],
     region: Optional[str] = None,
+    panel_title: Optional[str] = None,
 ) -> None:
     data_keys, bkg_keys, signal_keys = _classify_datasets(results, names)
     is_sr = (region == "sr") if region is not None else (hist_key in SR_HIST_KEYS)
@@ -420,17 +453,21 @@ def _draw_stacked_panel(
             style = sig_styles.get(skey, dict(color="#E41A1C", linestyle="--"))
             ax.step(ref_edges[:-1], svals, where="post", linewidth=2.2, label=skey, **style)
 
-    ttl = f"{hist_key} [{region}]" if region is not None else hist_key
-    ax.set_title(ttl)
+    ttl = (
+        panel_title
+        if panel_title is not None
+        else (f"{hist_key} [{region}]" if region is not None else hist_key)
+    )
+    _title_inside_axes(ax, ttl, loc="upper left")
     if hep is not None:
         # Treat only real CR overlays as data; SR pseudo-data stays simulation-like.
         has_real_data = data_sum is not None
-        hep.cms.label("Preliminary", data=has_real_data, lumi=41.5, year=2017, ax=ax)
+        hep.cms.label(" ", data=has_real_data, lumi=41.5, year=2017, ax=ax)
     ax.set_yscale("log")
     ymin, ymax = ax.get_ylim()
     ax.set_ylim(max(1e-3, ymin), max(1.0, ymax) * 100.0)
     ax.grid(alpha=0.18)
-    ax.legend(loc="upper right", ncol=2, fontsize=8.5, frameon=False, columnspacing=1.0, handlelength=1.6)
+    ax.legend(loc="upper right", ncol=2, fontsize=10.5, frameon=False, columnspacing=1.0, handlelength=1.6)
 
     # Ratio panel: Data/Pred.
     ratio = np.divide(dvals, pred, out=np.full_like(dvals, np.nan, dtype=float), where=pred > 0.0)
@@ -456,7 +493,7 @@ def _draw_stacked_panel(
     rax.set_ylabel("Data/Pred.")
     rax.set_xlabel(hist_key)
     rax.grid(alpha=0.18, axis="y")
-    rax.legend(loc="upper right", fontsize=7.5, frameon=False, handlelength=1.6)
+    rax.legend(loc="upper right", fontsize=9.5, frameon=False, handlelength=1.6)
 
 
 def sum_histogram(results: Dict, hist_key: str, datasets: Optional[Iterable[str]] = None):
@@ -638,9 +675,9 @@ def plot_cutflow_by_region(
         ymin, ymax = ax.get_ylim()
         ax.set_ylim(max(1e-1, ymin), max(1.0, ymax) * 10.0)
         ax.set_ylabel("Events")
-        ax.set_title(f"Cutflow [{region}]")
+        _title_inside_axes(ax, f"Cutflow [{region}]", loc="upper left")
         ax.grid(alpha=0.18, axis="y")
-        ax.legend(loc="upper right", ncol=2, fontsize=8.5, frameon=False, columnspacing=1.0, handlelength=1.6)
+        ax.legend(loc="upper right", ncol=2, fontsize=10.5, frameon=False, columnspacing=1.0, handlelength=1.6)
         fig.tight_layout()
         figs[region] = fig
     return figs
@@ -650,7 +687,7 @@ def plot_all_variables_grid(
     pkl_path: str,
     datasets: Optional[Iterable[str]] = None,
     ncols: int = 3,
-    figsize_per_panel=(4.6, 3.6),
+    figsize_per_panel=(6.6, 5.6),
     show_cutflow: bool = True,
     show_cutflow_plots: bool = False,
 ):
@@ -748,9 +785,15 @@ def plot_variable_stacked(
             rax = fig.add_subplot(gs[2 * prow + 1, pcol], sharex=ax)
             axes[2 * prow, pcol] = ax
             axes[2 * prow + 1, pcol] = rax
-            _draw_stacked_panel(ax, rax, results, hist_key, names, region=reg)
-            if title:
-                ax.set_title(f"{title} [{reg}]")
+            _draw_stacked_panel(
+                ax,
+                rax,
+                results,
+                hist_key,
+                names,
+                region=reg,
+                panel_title=(f"{title} [{reg}]" if title else None),
+            )
             plt.setp(ax.get_xticklabels(), visible=False)
         total_slots = nrows * ncols
         for j in range(len(regions), total_slots):
@@ -768,8 +811,6 @@ def plot_variable_stacked(
     gs = GridSpec(2, 1, figure=fig, height_ratios=[3.0, 1.0])
     ax = fig.add_subplot(gs[0, 0])
     rax = fig.add_subplot(gs[1, 0], sharex=ax)
-    _draw_stacked_panel(ax, rax, results, hist_key, names)
-    ax.set_title(title or hist_key)
+    _draw_stacked_panel(ax, rax, results, hist_key, names, panel_title=title or hist_key)
     plt.setp(ax.get_xticklabels(), visible=False)
     return fig, (ax, rax)
-
