@@ -18,6 +18,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
 from hist import Hist
+try:
+    import mplhep as hep
+except Exception:
+    hep = None
 
 PROCESS_COLORS = {
     "DYJets": "#3BAF2A",
@@ -49,6 +53,8 @@ REGION_ORDER = ("sr", "zecr", "zmucr", "tecr", "tmucr")
 
 
 def _apply_plot_style() -> None:
+    if hep is not None:
+        hep.style.use("CMS")
     plt.rcParams.update(
         {
             "axes.linewidth": 1.6,
@@ -334,23 +340,8 @@ def _draw_stacked_panel(
     total_unc = np.sqrt(stat_unc**2 + syst_unc**2)
 
     # Main-pad uncertainty bands.
-    stat_lo = np.clip(pred - stat_unc, 0.0, None)
-    stat_hi = pred + stat_unc
     tot_lo = np.clip(pred - total_unc, 0.0, None)
     tot_hi = pred + total_unc
-    ax.fill_between(
-        ref_edges,
-        _step_extend(stat_lo),
-        _step_extend(stat_hi),
-        step="post",
-        facecolor="none",
-        edgecolor="#4d4d4d",
-        hatch="////",
-        linewidth=0.0,
-        alpha=0.9,
-        label="Stat. unc.",
-        zorder=5,
-    )
     ax.fill_between(
         ref_edges,
         _step_extend(tot_lo),
@@ -358,10 +349,10 @@ def _draw_stacked_panel(
         step="post",
         facecolor="none",
         edgecolor="#b22222",
-        hatch="\\\\\\\\",
+        hatch="xx",
         linewidth=0.0,
         alpha=0.7,
-        label="Stat. + Syst. unc.",
+        label="_nolegend_",
         zorder=6,
     )
 
@@ -431,6 +422,10 @@ def _draw_stacked_panel(
 
     ttl = f"{hist_key} [{region}]" if region is not None else hist_key
     ax.set_title(ttl)
+    if hep is not None:
+        # Treat only real CR overlays as data; SR pseudo-data stays simulation-like.
+        has_real_data = data_sum is not None
+        hep.cms.label("Preliminary", data=has_real_data, lumi=41.5, year=2017, ax=ax)
     ax.set_yscale("log")
     ymin, ymax = ax.get_ylim()
     ax.set_ylim(max(1e-3, ymin), max(1.0, ymax) * 100.0)
@@ -441,20 +436,7 @@ def _draw_stacked_panel(
     ratio = np.divide(dvals, pred, out=np.full_like(dvals, np.nan, dtype=float), where=pred > 0.0)
     rerr = np.divide(derr, pred, out=np.full_like(derr, np.nan, dtype=float), where=pred > 0.0)
 
-    stat_ratio = np.divide(stat_unc, pred, out=np.full_like(stat_unc, np.nan, dtype=float), where=pred > 0.0)
     total_ratio = np.divide(total_unc, pred, out=np.full_like(total_unc, np.nan, dtype=float), where=pred > 0.0)
-    rax.fill_between(
-        ref_edges,
-        _step_extend(1.0 - stat_ratio),
-        _step_extend(1.0 + stat_ratio),
-        step="post",
-        facecolor="none",
-        edgecolor="#4d4d4d",
-        hatch="////",
-        linewidth=0.0,
-        alpha=0.9,
-        zorder=1,
-    )
     rax.fill_between(
         ref_edges,
         _step_extend(1.0 - total_ratio),
@@ -462,9 +444,10 @@ def _draw_stacked_panel(
         step="post",
         facecolor="none",
         edgecolor="#b22222",
-        hatch="\\\\\\\\",
+        hatch="xx",
         linewidth=0.0,
         alpha=0.7,
+        label="Stat. + Syst. unc.",
         zorder=2,
     )
     rax.errorbar(centers, ratio, yerr=rerr, fmt="o", color="black", markersize=3.5, linewidth=1.0)
@@ -473,6 +456,7 @@ def _draw_stacked_panel(
     rax.set_ylabel("Data/Pred.")
     rax.set_xlabel(hist_key)
     rax.grid(alpha=0.18, axis="y")
+    rax.legend(loc="upper right", fontsize=7.5, frameon=False, handlelength=1.6)
 
 
 def sum_histogram(results: Dict, hist_key: str, datasets: Optional[Iterable[str]] = None):

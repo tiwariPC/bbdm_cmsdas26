@@ -132,6 +132,26 @@ def _build_output_bundle(results: dict, year: int, lumi_fb: float) -> dict:
             "lumi_fb": float(lumi_fb),
             "normalized": True,
             "normalization": "xsec*lumi/Ngen (MC), data=1",
+            "systematics": {
+                "lumi_rel_unc": 0.025,
+                "default_bkg_norm_rel_unc": 0.10,
+                "default_signal_norm_rel_unc": 0.10,
+                # Per-process normalization nuisances (relative, 1 sigma).
+                "bkg_norm_rel_unc_by_process": {
+                    "DYJets": 0.10,
+                    "ZJets": 0.10,
+                    "WJets": 0.10,
+                    "Top": 0.08,
+                    "STop": 0.08,
+                    "DIBOSON": 0.12,
+                    "SMH": 0.15,
+                },
+                # Flat shape nuisance placeholder used by Session 4 exercises.
+                "shape_rel_unc_by_observable": {
+                    "recoil": 0.05,
+                    "cos_theta_star": 0.05,
+                },
+            },
             "regions": ["sr", "zecr", "zmucr", "tecr", "tmucr"],
             "data_stream_by_region": {
                 "sr": "MET",
