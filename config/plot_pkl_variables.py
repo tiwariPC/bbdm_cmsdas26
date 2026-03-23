@@ -12,6 +12,7 @@ Note:
 
 import math
 import pickle
+from pathlib import Path
 from typing import Dict, Iterable, Optional
 
 import matplotlib.pyplot as plt
@@ -101,6 +102,21 @@ def _apply_plot_style() -> None:
     )
 
 
+def _resolve_plot_dir(save_dir: Optional[str]) -> Path:
+    """Resolve and create the output plot directory."""
+    if save_dir:
+        out = Path(save_dir).expanduser()
+    else:
+        out = Path("output/plots")
+    out.mkdir(parents=True, exist_ok=True)
+    return out
+
+
+def _safe_plot_name(name: str) -> str:
+    s = str(name).strip().replace(" ", "_")
+    return "".join(ch if (ch.isalnum() or ch in "._-") else "_" for ch in s)
+
+
 def load_results(pkl_path: str) -> Dict:
     with open(pkl_path, "rb") as f:
         raw = pickle.load(f)
@@ -166,9 +182,7 @@ def list_histogram_keys(results: Dict, key_hint: Optional[str] = None):
     # Prefer region-aware histograms if available.
     region_keys = [k[:-10] for k in keys if k.endswith("_by_region")]
     if region_keys:
-        base = sorted(set(region_keys))
-        no_region = sorted([k for k in keys if (not k.endswith("_by_region")) and (k not in base)])
-        return base + no_region
+        return sorted(set(region_keys))
     return keys
 
 
@@ -316,7 +330,7 @@ def _draw_stacked_panel(
 ) -> None:
     data_keys, bkg_keys, signal_keys = _classify_datasets(results, names)
     is_sr = (region == "sr") if region is not None else (hist_key in SR_HIST_KEYS)
-    active_data_keys = _data_keys_for_region(data_keys, region)
+    active_data_keys = [] if is_sr else _data_keys_for_region(data_keys, region)
 
     bkg_hists = []
     for name in bkg_keys:
@@ -324,7 +338,10 @@ def _draw_stacked_panel(
             continue
         h = _extract_hist(results, name, hist_key)
         if h is not None:
-            if region is not None and _region_axis_name(h) is not None:
+            if region is not None:
+                if _region_axis_name(h) is None:
+                    # For region panels, never fall back to non-region histograms.
+                    continue
                 try:
                     h = h[{"region": region}]
                 except Exception:
@@ -399,7 +416,9 @@ def _draw_stacked_panel(
             h = _extract_hist(results, name, hist_key)
             if h is None:
                 continue
-            if region is not None and _region_axis_name(h) is not None:
+            if region is not None:
+                if _region_axis_name(h) is None:
+                    continue
                 try:
                     h = h[{"region": region}]
                 except Exception:
@@ -419,7 +438,7 @@ def _draw_stacked_panel(
     else:
         dvals = np.asarray(bottom, dtype=float).copy()
         derr = np.sqrt(np.clip(dvals, 0.0, None))
-        dlabel = "Data"
+        dlabel = "Pseudo-data (MC sum)" if is_sr else "Data"
     ax.errorbar(
         centers,
         dvals,
@@ -442,7 +461,9 @@ def _draw_stacked_panel(
             h = _extract_hist(results, skey, hist_key)
             if h is None:
                 continue
-            if region is not None and _region_axis_name(h) is not None:
+            if region is not None:
+                if _region_axis_name(h) is None:
+                    continue
                 try:
                     h = h[{"region": region}]
                 except Exception:
@@ -610,10 +631,10 @@ def _cutflow_steps_for_region(cf: Dict[str, int], region: str) -> list:
         order = [("trigger", "trigger"), ("presel", "zmucr_presel"), ("2mumu", "zmucr_twolep"), ("leadLepPt", "zmucr_leadlep"), ("mll", "zmucr_mll"), ("zmucr", "zmucr")]
         return [s for s in order if s[1] in cf]
     if region == "tecr":
-        order = [("trigger", "trigger"), ("presel", "tecr_presel"), ("1e", "tecr_onelep"), ("leadLepPt", "tecr_leppt"), ("mT", "tecr_mt"), ("nBJet>=2", "tecr_nbjet"), ("nNonB>=2", "tecr_nnonb"), ("tecr", "tecr")]
+        order = [("trigger", "trigger"), ("presel", "tecr_presel"), ("1e", "tecr_onelep"), ("leadLepPt", "tecr_leppt"), ("mT", "tecr_mt"), ("nBJet=2", "tecr_nbjet"), ("nNonB>=2", "tecr_nnonb"), ("tecr", "tecr")]
         return [s for s in order if s[1] in cf]
     if region == "tmucr":
-        order = [("trigger", "trigger"), ("presel", "tmucr_presel"), ("1mu", "tmucr_onelep"), ("leadLepPt", "tmucr_leppt"), ("mT", "tmucr_mt"), ("nBJet>=2", "tmucr_nbjet"), ("nNonB>=2", "tmucr_nnonb"), ("tmucr", "tmucr")]
+        order = [("trigger", "trigger"), ("presel", "tmucr_presel"), ("1mu", "tmucr_onelep"), ("leadLepPt", "tmucr_leppt"), ("mT", "tmucr_mt"), ("nBJet=2", "tmucr_nbjet"), ("nNonB>=2", "tmucr_nnonb"), ("tmucr", "tmucr")]
         return [s for s in order if s[1] in cf]
     return []
 
@@ -621,6 +642,8 @@ def _cutflow_steps_for_region(cf: Dict[str, int], region: str) -> list:
 def plot_cutflow_by_region(
     pkl_path: str,
     datasets: Optional[Iterable[str]] = None,
+    save_plots: bool = False,
+    save_dir: Optional[str] = None,
 ):
     """
     Plot one stacked cutflow panel per region.
@@ -632,6 +655,7 @@ def plot_cutflow_by_region(
     cf_all = get_cutflow(results, datasets=datasets)
 
     figs = {}
+    out_dir = _resolve_plot_dir(save_dir) if save_plots else None
     for region in REGION_ORDER:
         steps = _cutflow_steps_for_region(cf_all, region)
         if not steps:
@@ -679,6 +703,8 @@ def plot_cutflow_by_region(
         ax.grid(alpha=0.18, axis="y")
         ax.legend(loc="upper right", ncol=2, fontsize=10.5, frameon=False, columnspacing=1.0, handlelength=1.6)
         fig.tight_layout()
+        if out_dir is not None:
+            fig.savefig(out_dir / f"cutflow_{region}.png", dpi=160)
         figs[region] = fig
     return figs
 
@@ -690,6 +716,10 @@ def plot_all_variables_grid(
     figsize_per_panel=(6.6, 5.6),
     show_cutflow: bool = True,
     show_cutflow_plots: bool = False,
+    save_plots: bool = False,
+    save_dir: Optional[str] = None,
+    save_individual: bool = True,
+    save_grid: bool = False,
 ):
     """
     Plot every histogram variable found in the pickle on a matplotlib grid.
@@ -708,8 +738,13 @@ def plot_all_variables_grid(
         if regions:
             for r in regions:
                 panel_specs.append((key, r))
-        else:
-            panel_specs.append((key, None))
+        # In the new output schema we only plot region-aware histograms.
+        # Legacy non-region hist keys are intentionally skipped here.
+    if not panel_specs:
+        raise RuntimeError(
+            "No region-aware histograms found. "
+            "Use a new-schema pickle from run_analysis.py output bundle."
+        )
 
     nvars = len(panel_specs)
     nrows = math.ceil(nvars / ncols)
@@ -735,6 +770,18 @@ def plot_all_variables_grid(
         _draw_stacked_panel(ax, rax, results, key, selected_names, region=reg)
         plt.setp(ax.get_xticklabels(), visible=False)
 
+        if save_plots and save_individual:
+            out_dir = _resolve_plot_dir(save_dir)
+            f1 = plt.figure(figsize=(6.4, 5.2), constrained_layout=True)
+            gs1 = GridSpec(2, 1, figure=f1, height_ratios=[3.0, 1.0])
+            ax1 = f1.add_subplot(gs1[0, 0])
+            rax1 = f1.add_subplot(gs1[1, 0], sharex=ax1)
+            _draw_stacked_panel(ax1, rax1, results, key, selected_names, region=reg)
+            plt.setp(ax1.get_xticklabels(), visible=False)
+            tag = f"{_safe_plot_name(key)}_{_safe_plot_name(reg)}" if reg is not None else _safe_plot_name(key)
+            f1.savefig(out_dir / f"{tag}.png", dpi=160)
+            plt.close(f1)
+
     total_slots = nrows * ncols
     for j in range(nvars, total_slots):
         prow = j // ncols
@@ -749,7 +796,15 @@ def plot_all_variables_grid(
     if show_cutflow:
         print_cutflow_by_region(results, datasets=datasets)
     if show_cutflow_plots:
-        plot_cutflow_by_region(pkl_path, datasets=datasets)
+        plot_cutflow_by_region(
+            pkl_path,
+            datasets=datasets,
+            save_plots=save_plots,
+            save_dir=save_dir,
+        )
+    if save_plots and save_grid:
+        out_dir = _resolve_plot_dir(save_dir)
+        fig.savefig(out_dir / "all_variables_grid.png", dpi=160)
 
     return fig, axes
 
@@ -759,6 +814,8 @@ def plot_variable_stacked(
     hist_key: str,
     datasets: Optional[Iterable[str]] = None,
     title: Optional[str] = None,
+    save_plots: bool = False,
+    save_dir: Optional[str] = None,
 ):
     """
     Plot one histogram key as stacked processes with project aesthetics.
@@ -805,6 +862,9 @@ def plot_variable_stacked(
             rax.set_axis_off()
             axes[2 * prow, pcol] = ax
             axes[2 * prow + 1, pcol] = rax
+        if save_plots:
+            out_dir = _resolve_plot_dir(save_dir)
+            fig.savefig(out_dir / f"{hist_key}_stacked.png", dpi=160)
         return fig, axes
 
     fig = plt.figure(figsize=(6.4, 5.2), constrained_layout=True)
@@ -813,4 +873,7 @@ def plot_variable_stacked(
     rax = fig.add_subplot(gs[1, 0], sharex=ax)
     _draw_stacked_panel(ax, rax, results, hist_key, names, panel_title=title or hist_key)
     plt.setp(ax.get_xticklabels(), visible=False)
+    if save_plots:
+        out_dir = _resolve_plot_dir(save_dir)
+        fig.savefig(out_dir / f"{hist_key}_stacked.png", dpi=160)
     return fig, (ax, rax)

@@ -213,14 +213,19 @@ def select_good_jets(events):
     return jets[mask]
 
 
-def min_dphi_jets_met(jets, met_phi):
+def min_dphi_jets_recoil(jets, recoil_phi):
     """
-    Minimum Δφ between any selected jet and MET direction (per event).
+    Minimum Δφ between any selected jet and recoil direction (per event).
     Returns array of shape (nEvents,).
     """
-    dphi = np.abs(jets.phi - met_phi)
+    dphi = np.abs(jets.phi - recoil_phi)
     dphi = ak.where(dphi > np.pi, 2 * np.pi - dphi, dphi)
     return ak.min(dphi, axis=1)
+
+
+def min_dphi_jets_met(jets, met_phi):
+    """Backward-compatible alias; prefer ``min_dphi_jets_recoil``."""
+    return min_dphi_jets_recoil(jets, met_phi)
 
 
 def count_bjets(jets, wp=BTAG_WP_MEDIUM):
@@ -453,13 +458,13 @@ class bbDMProcessor(processor.ProcessorABC):
             axis.Regular(6, 0, 6, name="nlep", label="Lepton multiplicity"),
             storage="weight",
         )
-        self._hist_min_dphi_jets_met = Hist(
-            axis.Regular(32, 0, 3.2, name="min_dphi_jets_met", label="min #Delta#phi(jet, MET)"),
+        self._hist_min_dphi_jets_recoil = Hist(
+            axis.Regular(32, 0, 3.2, name="min_dphi_jets_recoil", label="min #Delta#phi(jet, recoil)"),
             storage="weight",
         )
-        self._hist_min_dphi_jets_met_by_region = Hist(
+        self._hist_min_dphi_jets_recoil_by_region = Hist(
             reg_ax,
-            axis.Regular(32, 0, 3.2, name="min_dphi_jets_met", label="min #Delta#phi(jet, MET)"),
+            axis.Regular(32, 0, 3.2, name="min_dphi_jets_recoil", label="min #Delta#phi(jet, recoil)"),
             storage="weight",
         )
         self._hist_met_pf_calo_delta = Hist(
@@ -501,8 +506,8 @@ class bbDMProcessor(processor.ProcessorABC):
             "lead_jet_pt_by_region": HistAccumulator(self._hist_lead_jet_pt_by_region).identity(),
             "nlep": HistAccumulator(self._hist_nlep).identity(),
             "nlep_by_region": HistAccumulator(self._hist_nlep_by_region).identity(),
-            "min_dphi_jets_met": HistAccumulator(self._hist_min_dphi_jets_met).identity(),
-            "min_dphi_jets_met_by_region": HistAccumulator(self._hist_min_dphi_jets_met_by_region).identity(),
+            "min_dphi_jets_recoil": HistAccumulator(self._hist_min_dphi_jets_recoil).identity(),
+            "min_dphi_jets_recoil_by_region": HistAccumulator(self._hist_min_dphi_jets_recoil_by_region).identity(),
             "met_pf_calo_delta": HistAccumulator(self._hist_met_pf_calo_delta).identity(),
             "met_pf_calo_delta_by_region": HistAccumulator(self._hist_met_pf_calo_delta_by_region).identity(),
             "recoil_all": HistAccumulator(self._hist_recoil_all).identity(),
@@ -579,7 +584,7 @@ class bbDMProcessor(processor.ProcessorABC):
         met = events.MET.pt
         met_phi = events.MET.phi
         recoil_all = get_recoil(events)
-        min_dphi = min_dphi_jets_met(good_jets, met_phi)
+        min_dphi = min_dphi_jets_recoil(good_jets, met_phi)
         # PF vs Calo MET consistency: after Δphi(jet,MET), before recoil threshold (skipped if CaloMET missing)
         met_pf_calo_ok = met_pf_calo_mask(events)
 
@@ -616,8 +621,8 @@ class bbDMProcessor(processor.ProcessorABC):
         lead_pt = ak.fill_none(ak.firsts(good_jets[presel].pt), 0.0)
         out["lead_jet_pt"].fill(lead_jet_pt=ak.to_numpy(lead_pt), weight=ak.to_numpy(ak.fill_none(w, 1.0)))
         out["nlep"].fill(nlep=ak.to_numpy(nlep[presel]), weight=ak.to_numpy(ak.fill_none(w, 1.0)))
-        out["min_dphi_jets_met"].fill(
-            min_dphi_jets_met=ak.to_numpy(min_dphi[presel]),
+        out["min_dphi_jets_recoil"].fill(
+            min_dphi_jets_recoil=ak.to_numpy(min_dphi[presel]),
             weight=ak.to_numpy(ak.fill_none(w, 1.0)),
         )
         out["recoil_all"].fill(
@@ -721,18 +726,18 @@ class bbDMProcessor(processor.ProcessorABC):
         dphi_lep_met = np.where(dphi_lep_met > np.pi, 2 * np.pi - dphi_lep_met, dphi_lep_met)
         mt = ak.Array(np.sqrt(2.0 * ak.to_numpy(met) * ak.to_numpy(lep_pt_t) * (1.0 - np.cos(dphi_lep_met))))
         n_non_b = njets - nbjets
-        common_t = presel_t & (lep_pt_t > LEAD_LEP_PT_CR) & (mt < TOP_CR_MT_MAX) & (nbjets >= 2) & (n_non_b >= 2)
+        common_t = presel_t & (lep_pt_t > LEAD_LEP_PT_CR) & (mt < TOP_CR_MT_MAX) & (nbjets == 2) & (n_non_b >= 2)
         tecr = common_t & one_ele
         tmucr = common_t & one_mu
         tecr_onelep = presel_t & one_ele
         tecr_leppt = tecr_onelep & (lep_pt_t > LEAD_LEP_PT_CR)
         tecr_mt = tecr_leppt & (mt < TOP_CR_MT_MAX)
-        tecr_nb = tecr_mt & (nbjets >= 2)
+        tecr_nb = tecr_mt & (nbjets == 2)
         tecr_nnonb = tecr_nb & (n_non_b >= 2)
         tmucr_onelep = presel_t & one_mu
         tmucr_leppt = tmucr_onelep & (lep_pt_t > LEAD_LEP_PT_CR)
         tmucr_mt = tmucr_leppt & (mt < TOP_CR_MT_MAX)
-        tmucr_nb = tmucr_mt & (nbjets >= 2)
+        tmucr_nb = tmucr_mt & (nbjets == 2)
         tmucr_nnonb = tmucr_nb & (n_non_b >= 2)
 
         out["cutflow"]["zecr"] += int(ak.sum(zecr))
@@ -802,8 +807,8 @@ class bbDMProcessor(processor.ProcessorABC):
             out["recoil_by_region"].fill(region=reg, recoil=ak.to_numpy(recoil_r), weight=ak.to_numpy(wr))
             out["lead_jet_pt_by_region"].fill(region=reg, lead_jet_pt=ak.to_numpy(lead_pt_r), weight=ak.to_numpy(wr))
             out["nlep_by_region"].fill(region=reg, nlep=ak.to_numpy(nlep_r), weight=ak.to_numpy(wr))
-            out["min_dphi_jets_met_by_region"].fill(
-                region=reg, min_dphi_jets_met=ak.to_numpy(mindphi_r), weight=ak.to_numpy(wr)
+            out["min_dphi_jets_recoil_by_region"].fill(
+                region=reg, min_dphi_jets_recoil=ak.to_numpy(mindphi_r), weight=ak.to_numpy(wr)
             )
             out["recoil_all_by_region"].fill(region=reg, recoil_all=ak.to_numpy(recoil_all_r), weight=ak.to_numpy(wr))
 
