@@ -660,15 +660,20 @@ def data_and_bkg_keys(results: Dict[str, Any]) -> tuple:
     Merged format: data -> ``[\"data\"]``, backgrounds exclude ``signal`` unless you add it by hand.
     Legacy: discover MET/Run2017/Single* as data, rest as backgrounds.
     """
+    if isinstance(results, dict) and isinstance(results.get("samples"), dict):
+        results = results["samples"]
+
     keys = list(results.keys())
     if is_merged_results_format(results):
-        data_keys = ["data"]
-        bkg_keys = [k for k in keys if (k != "data") and (not is_signal_key(k))]
+        data_keys = [k for k in ("data", "data_MET", "data_SingleElectron", "MET", "SingleElectron") if k in results]
+        if not data_keys:
+            data_keys = ["data"]
+        bkg_keys = [k for k in keys if (k not in data_keys) and (not is_signal_key(k))]
         return data_keys, bkg_keys
     data_keys = [
         d
         for d in keys
-        if ("Run2017" in d) or ("Single" in d) or d.startswith("MET_")
+        if ("Run2017" in d) or ("Single" in d) or d.startswith("MET_") or d.startswith("data_")
     ]
     bkg_keys = [d for d in keys if (d not in data_keys) and (not is_signal_key(d))]
     return data_keys, bkg_keys

@@ -61,6 +61,62 @@ def _order_merged_keys(results: Dict[str, Any]) -> Dict[str, Any]:
     return ordered
 
 
+def _schema_sample_key(name: str) -> str:
+    n = str(name)
+    if n == "MET":
+        return "data_MET"
+    if n == "SingleElectron":
+        return "data_SingleElectron"
+    return n
+
+
+def _accumulator_to_schema_sample(acc) -> Dict[str, Any]:
+    sample: Dict[str, Any] = {}
+    sample["cutflow"] = dict(acc.get("cutflow", {}))
+    hists_by_region: Dict[str, Any] = {}
+    hists_other: Dict[str, Any] = {}
+    for key, value in acc.items():
+        if key == "cutflow":
+            continue
+        if hasattr(value, "_hist"):
+            if str(key).endswith("_by_region"):
+                hists_by_region[str(key)[:-10]] = value
+            else:
+                hists_other[str(key)] = value
+    if hists_by_region:
+        sample["hists_by_region"] = hists_by_region
+    if hists_other:
+        sample["hists"] = hists_other
+    return sample
+
+
+def _build_output_bundle(results: Dict[str, Any], year: int, lumi_fb: float) -> Dict[str, Any]:
+    samples: Dict[str, Any] = {}
+    for name, acc in results.items():
+        samples[_schema_sample_key(name)] = _accumulator_to_schema_sample(acc)
+    return {
+        "metadata": {
+            "year": int(year),
+            "lumi_fb": float(lumi_fb),
+            "normalized": True,
+            "normalization": "xsec*lumi/Ngen (MC), data=1",
+            "regions": ["sr", "zecr", "zmucr", "tecr", "tmucr"],
+            "data_stream_by_region": {
+                "sr": "MET",
+                "zmucr": "MET",
+                "tmucr": "MET",
+                "zecr": "SingleElectron",
+                "tecr": "SingleElectron",
+            },
+            "binning": {
+                "recoil": [250, 300, 400, 550, 1000],
+                "cos_theta_star": [0.0, 0.25, 0.5, 0.75, 1.0],
+            },
+        },
+        "samples": samples,
+    }
+
+
 def merge_shards(shard_glob: str, split_data_streams: bool = True) -> Dict[str, Any]:
     files = sorted(glob.glob(shard_glob))
     # Fallback for older/new Condor transfer behaviors that place shards at repo root.
@@ -108,14 +164,27 @@ def main() -> None:
         action="store_true",
         help="Keep all data in one merged key (default: split into MET and SingleElectron).",
     )
+    parser.add_argument(
+        "--year",
+        type=int,
+        default=2017,
+        help="Year metadata in merged output bundle (default: 2017).",
+    )
+    parser.add_argument(
+        "--lumi-fb",
+        type=float,
+        default=41.5,
+        help="Luminosity metadata in /fb for merged output bundle (default: 41.5).",
+    )
     args = parser.parse_args()
 
     results = merge_shards(args.shards, split_data_streams=not args.combine_data)
+    bundle = _build_output_bundle(results, year=args.year, lumi_fb=args.lumi_fb)
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
     with open(args.output, "wb") as f:
-        pickle.dump(results, f)
+        pickle.dump(bundle, f)
     print(f"Merged {len(results)} groups into {args.output}")
-    print("Keys:", list(results.keys()))
+    print("Sample keys:", list(bundle.get("samples", {}).keys()))
 
 
 if __name__ == "__main__":

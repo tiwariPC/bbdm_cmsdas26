@@ -16,6 +16,7 @@ from typing import Dict, Iterable, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.gridspec import GridSpec
 from hist import Hist
 
 PROCESS_COLORS = {
@@ -31,8 +32,12 @@ PROCESS_COLORS = {
 DEFAULT_COLOR = "#9A9A9A"
 TARGET_SIGNAL_KEYS = ("signal_mA600_ma250_mchi1", "signal_mA600_ma500_mchi1")
 SR_HIST_KEYS = {"recoil", "cos_theta_star"}
+# Relative normalization uncertainty used for the "systematics" band in plots.
+SYSTEMATIC_REL_UNC = 0.10
 DATA_KEY_CANDIDATES = (
     "data",
+    "data_MET",
+    "data_SingleElectron",
     "MET",
     "SingleElectron",
     "SingleMuon",
@@ -60,7 +65,50 @@ def _apply_plot_style() -> None:
 
 def load_results(pkl_path: str) -> Dict:
     with open(pkl_path, "rb") as f:
-        return pickle.load(f)
+        raw = pickle.load(f)
+    return _flatten_schema_samples(raw)
+
+
+def _flatten_schema_samples(raw: Dict) -> Dict:
+    """
+    Convert structured bundle format
+      {"metadata": {...}, "samples": {...}}
+    into legacy plotting shape:
+      {sample_name: {"cutflow": ..., "<hist_key>": HistAccumulator, ...}, ...}
+    """
+    if not isinstance(raw, dict):
+        return raw
+    samples = raw.get("samples")
+    if not isinstance(samples, dict):
+        return raw
+
+    flat: Dict = {}
+    for name, sample in samples.items():
+        if not isinstance(sample, dict):
+            continue
+        acc = {}
+        cutflow = sample.get("cutflow")
+        if isinstance(cutflow, dict):
+            acc["cutflow"] = cutflow
+
+        hbr = sample.get("hists_by_region", {})
+        if isinstance(hbr, dict):
+            for key, value in hbr.items():
+                acc[f"{key}_by_region"] = value
+
+        hists = sample.get("hists", {})
+        if isinstance(hists, dict):
+            for key, value in hists.items():
+                acc[key] = value
+
+        # Accept mixed payloads where hist keys may still be top-level.
+        for key, value in sample.items():
+            if key in ("cutflow", "hists_by_region", "hists", "metadata"):
+                continue
+            if _unwrap_hist(value) is not None and key not in acc:
+                acc[key] = value
+        flat[name] = acc
+    return flat
 
 
 def _unwrap_hist(obj):
@@ -94,6 +142,8 @@ def _is_signal_key(name: str) -> bool:
 def _is_data_key(name: str) -> bool:
     n = str(name)
     if n in DATA_KEY_CANDIDATES:
+        return True
+    if n.startswith("data_"):
         return True
     if n.startswith("MET"):
         return True
@@ -145,14 +195,14 @@ def _data_keys_for_region(data_keys: Iterable[str], region: Optional[str]) -> li
     # - zecr, tecr -> SingleElectron data
     # Fall back to generic "data" if dedicated stream is unavailable.
     if region in ("sr", "zmucr", "tmucr"):
-        k = _first(("MET_Run2017", "MET"))
+        k = _first(("data_MET", "MET_Run2017", "MET"))
         if k is not None:
             return [k]
         if "data" in keys:
             return ["data"]
         return []
     if region in ("zecr", "tecr"):
-        k = _first(("SingleElectron_Run2017", "SingleElectron"))
+        k = _first(("data_SingleElectron", "SingleElectron_Run2017", "SingleElectron"))
         if k is not None:
             return [k]
         if "data" in keys:
@@ -210,7 +260,21 @@ def _check_edges_match(ref_edges: np.ndarray, test_edges: np.ndarray) -> bool:
     return len(ref_edges) == len(test_edges) and np.allclose(ref_edges, test_edges)
 
 
-def _draw_stacked_panel(ax, results: Dict, hist_key: str, names: Iterable[str], region: Optional[str] = None) -> None:
+def _step_extend(y: np.ndarray) -> np.ndarray:
+    """Convert per-bin values to post-step values with len(edges)=len(y)+1."""
+    if len(y) == 0:
+        return np.array([0.0], dtype=float)
+    return np.r_[y, y[-1]]
+
+
+def _draw_stacked_panel(
+    ax,
+    rax,
+    results: Dict,
+    hist_key: str,
+    names: Iterable[str],
+    region: Optional[str] = None,
+) -> None:
     data_keys, bkg_keys, signal_keys = _classify_datasets(results, names)
     is_sr = (region == "sr") if region is not None else (hist_key in SR_HIST_KEYS)
     active_data_keys = _data_keys_for_region(data_keys, region)
@@ -231,18 +295,25 @@ def _draw_stacked_panel(ax, results: Dict, hist_key: str, names: Iterable[str], 
     if not bkg_hists:
         ax.text(0.5, 0.5, f"Missing: {hist_key}", ha="center", va="center")
         ax.set_axis_off()
+        rax.set_axis_off()
         return
 
     ref_edges = bkg_hists[0][1].axes[0].edges
     centers = 0.5 * (ref_edges[:-1] + ref_edges[1:])
     widths = np.diff(ref_edges)
     bottom = np.zeros_like(centers, dtype=float)
+    pred_var = np.zeros_like(centers, dtype=float)
 
     for name, h in bkg_hists:
         edges = h.axes[0].edges
         if not _check_edges_match(ref_edges, edges):
             continue
         vals = np.asarray(h.values(), dtype=float)
+        vars_h = h.variances()
+        if vars_h is not None:
+            pred_var = pred_var + np.clip(np.asarray(vars_h, dtype=float), 0.0, None)
+        else:
+            pred_var = pred_var + np.clip(vals, 0.0, None)
         ax.bar(
             centers,
             vals,
@@ -257,8 +328,48 @@ def _draw_stacked_panel(ax, results: Dict, hist_key: str, names: Iterable[str], 
         )
         bottom = bottom + vals
 
-    # Data is shown only outside SR.
-    if (not is_sr) and active_data_keys:
+    pred = np.asarray(bottom, dtype=float)
+    stat_unc = np.sqrt(np.clip(pred_var, 0.0, None))
+    syst_unc = SYSTEMATIC_REL_UNC * np.clip(pred, 0.0, None)
+    total_unc = np.sqrt(stat_unc**2 + syst_unc**2)
+
+    # Main-pad uncertainty bands.
+    stat_lo = np.clip(pred - stat_unc, 0.0, None)
+    stat_hi = pred + stat_unc
+    tot_lo = np.clip(pred - total_unc, 0.0, None)
+    tot_hi = pred + total_unc
+    ax.fill_between(
+        ref_edges,
+        _step_extend(stat_lo),
+        _step_extend(stat_hi),
+        step="post",
+        facecolor="none",
+        edgecolor="#4d4d4d",
+        hatch="////",
+        linewidth=0.0,
+        alpha=0.9,
+        label="Stat. unc.",
+        zorder=5,
+    )
+    ax.fill_between(
+        ref_edges,
+        _step_extend(tot_lo),
+        _step_extend(tot_hi),
+        step="post",
+        facecolor="none",
+        edgecolor="#b22222",
+        hatch="\\\\\\\\",
+        linewidth=0.0,
+        alpha=0.7,
+        label="Stat. + Syst. unc.",
+        zorder=6,
+    )
+
+    # Data overlay:
+    # - CRs: use configured data stream (MET or SingleElectron)
+    # - SR: use background sum as pseudo-data for a consistent ratio panel.
+    data_sum = None
+    if active_data_keys:
         data_sum = None
         for name in active_data_keys:
             h = _extract_hist(results, name, hist_key)
@@ -272,11 +383,30 @@ def _draw_stacked_panel(ax, results: Dict, hist_key: str, names: Iterable[str], 
             if not _check_edges_match(ref_edges, h.axes[0].edges):
                 continue
             data_sum = h if data_sum is None else (data_sum + h)
-        if data_sum is not None:
-            dvals = np.asarray(data_sum.values(), dtype=float)
-            dvars = data_sum.variances()
-            derr = np.sqrt(np.clip(np.asarray(dvars, dtype=float), 0.0, None)) if dvars is not None else np.sqrt(np.clip(dvals, 0.0, None))
-            ax.errorbar(centers, dvals, yerr=derr, fmt="o", color="black", markersize=3.5, linewidth=1.0, label="Data")
+    if data_sum is not None:
+        dvals = np.asarray(data_sum.values(), dtype=float)
+        dvars = data_sum.variances()
+        derr = (
+            np.sqrt(np.clip(np.asarray(dvars, dtype=float), 0.0, None))
+            if dvars is not None
+            else np.sqrt(np.clip(dvals, 0.0, None))
+        )
+        dlabel = "Data"
+    else:
+        dvals = np.asarray(bottom, dtype=float).copy()
+        derr = np.sqrt(np.clip(dvals, 0.0, None))
+        dlabel = "Data"
+    ax.errorbar(
+        centers,
+        dvals,
+        yerr=derr,
+        fmt="o",
+        color="black",
+        markersize=3.5,
+        linewidth=1.0,
+        label=dlabel,
+        zorder=10,
+    )
 
     # Signal is shown only in SR and only for the requested two signal keys.
     if is_sr:
@@ -306,6 +436,43 @@ def _draw_stacked_panel(ax, results: Dict, hist_key: str, names: Iterable[str], 
     ax.set_ylim(max(1e-3, ymin), max(1.0, ymax) * 100.0)
     ax.grid(alpha=0.18)
     ax.legend(loc="upper right", ncol=2, fontsize=8.5, frameon=False, columnspacing=1.0, handlelength=1.6)
+
+    # Ratio panel: Data/Pred.
+    ratio = np.divide(dvals, pred, out=np.full_like(dvals, np.nan, dtype=float), where=pred > 0.0)
+    rerr = np.divide(derr, pred, out=np.full_like(derr, np.nan, dtype=float), where=pred > 0.0)
+
+    stat_ratio = np.divide(stat_unc, pred, out=np.full_like(stat_unc, np.nan, dtype=float), where=pred > 0.0)
+    total_ratio = np.divide(total_unc, pred, out=np.full_like(total_unc, np.nan, dtype=float), where=pred > 0.0)
+    rax.fill_between(
+        ref_edges,
+        _step_extend(1.0 - stat_ratio),
+        _step_extend(1.0 + stat_ratio),
+        step="post",
+        facecolor="none",
+        edgecolor="#4d4d4d",
+        hatch="////",
+        linewidth=0.0,
+        alpha=0.9,
+        zorder=1,
+    )
+    rax.fill_between(
+        ref_edges,
+        _step_extend(1.0 - total_ratio),
+        _step_extend(1.0 + total_ratio),
+        step="post",
+        facecolor="none",
+        edgecolor="#b22222",
+        hatch="\\\\\\\\",
+        linewidth=0.0,
+        alpha=0.7,
+        zorder=2,
+    )
+    rax.errorbar(centers, ratio, yerr=rerr, fmt="o", color="black", markersize=3.5, linewidth=1.0)
+    rax.axhline(1.0, color="black", linewidth=1.0, alpha=0.8)
+    rax.set_ylim(0.4, 1.6)
+    rax.set_ylabel("Data/Pred.")
+    rax.set_xlabel(hist_key)
+    rax.grid(alpha=0.18, axis="y")
 
 
 def sum_histogram(results: Dict, hist_key: str, datasets: Optional[Iterable[str]] = None):
@@ -525,22 +692,38 @@ def plot_all_variables_grid(
 
     nvars = len(panel_specs)
     nrows = math.ceil(nvars / ncols)
-    fig, axes = plt.subplots(
-        nrows,
-        ncols,
-        figsize=(figsize_per_panel[0] * ncols, figsize_per_panel[1] * nrows),
-        squeeze=False,
+    fig = plt.figure(
+        figsize=(figsize_per_panel[0] * ncols, figsize_per_panel[1] * nrows * 1.35),
+        constrained_layout=True,
     )
-    axes_flat = axes.flatten()
+    gs = GridSpec(
+        nrows * 2,
+        ncols,
+        figure=fig,
+        height_ratios=sum(([3.0, 1.0] for _ in range(nrows)), []),
+    )
+    axes = np.empty((nrows * 2, ncols), dtype=object)
 
     for i, (key, reg) in enumerate(panel_specs):
-        ax = axes_flat[i]
-        _draw_stacked_panel(ax, results, key, selected_names, region=reg)
+        prow = i // ncols
+        pcol = i % ncols
+        ax = fig.add_subplot(gs[2 * prow, pcol])
+        rax = fig.add_subplot(gs[2 * prow + 1, pcol], sharex=ax)
+        axes[2 * prow, pcol] = ax
+        axes[2 * prow + 1, pcol] = rax
+        _draw_stacked_panel(ax, rax, results, key, selected_names, region=reg)
+        plt.setp(ax.get_xticklabels(), visible=False)
 
-    for j in range(nvars, len(axes_flat)):
-        axes_flat[j].set_axis_off()
-
-    fig.tight_layout()
+    total_slots = nrows * ncols
+    for j in range(nvars, total_slots):
+        prow = j // ncols
+        pcol = j % ncols
+        ax = fig.add_subplot(gs[2 * prow, pcol])
+        rax = fig.add_subplot(gs[2 * prow + 1, pcol], sharex=ax)
+        ax.set_axis_off()
+        rax.set_axis_off()
+        axes[2 * prow, pcol] = ax
+        axes[2 * prow + 1, pcol] = rax
 
     if show_cutflow:
         print_cutflow_by_region(results, datasets=datasets)
@@ -566,20 +749,43 @@ def plot_variable_stacked(
     if regions:
         ncols = min(3, len(regions))
         nrows = math.ceil(len(regions) / ncols)
-        fig, axes = plt.subplots(nrows, ncols, figsize=(6.4 * ncols, 4.2 * nrows), squeeze=False)
-        flat = axes.flatten()
+        fig = plt.figure(figsize=(6.4 * ncols, 5.2 * nrows), constrained_layout=True)
+        gs = GridSpec(
+            nrows * 2,
+            ncols,
+            figure=fig,
+            height_ratios=sum(([3.0, 1.0] for _ in range(nrows)), []),
+        )
+        axes = np.empty((nrows * 2, ncols), dtype=object)
         for i, reg in enumerate(regions):
-            _draw_stacked_panel(flat[i], results, hist_key, names, region=reg)
+            prow = i // ncols
+            pcol = i % ncols
+            ax = fig.add_subplot(gs[2 * prow, pcol])
+            rax = fig.add_subplot(gs[2 * prow + 1, pcol], sharex=ax)
+            axes[2 * prow, pcol] = ax
+            axes[2 * prow + 1, pcol] = rax
+            _draw_stacked_panel(ax, rax, results, hist_key, names, region=reg)
             if title:
-                flat[i].set_title(f"{title} [{reg}]")
-        for j in range(len(regions), len(flat)):
-            flat[j].set_axis_off()
-        fig.tight_layout()
+                ax.set_title(f"{title} [{reg}]")
+            plt.setp(ax.get_xticklabels(), visible=False)
+        total_slots = nrows * ncols
+        for j in range(len(regions), total_slots):
+            prow = j // ncols
+            pcol = j % ncols
+            ax = fig.add_subplot(gs[2 * prow, pcol])
+            rax = fig.add_subplot(gs[2 * prow + 1, pcol], sharex=ax)
+            ax.set_axis_off()
+            rax.set_axis_off()
+            axes[2 * prow, pcol] = ax
+            axes[2 * prow + 1, pcol] = rax
         return fig, axes
 
-    fig, ax = plt.subplots(figsize=(6.4, 4.8))
-    _draw_stacked_panel(ax, results, hist_key, names)
+    fig = plt.figure(figsize=(6.4, 5.2), constrained_layout=True)
+    gs = GridSpec(2, 1, figure=fig, height_ratios=[3.0, 1.0])
+    ax = fig.add_subplot(gs[0, 0])
+    rax = fig.add_subplot(gs[1, 0], sharex=ax)
+    _draw_stacked_panel(ax, rax, results, hist_key, names)
     ax.set_title(title or hist_key)
-    fig.tight_layout()
-    return fig, ax
+    plt.setp(ax.get_xticklabels(), visible=False)
+    return fig, (ax, rax)
 

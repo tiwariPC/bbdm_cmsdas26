@@ -9,10 +9,10 @@ Usage:
   python run_analysis.py --full --dataset DYJetsToLL_M50_HT400to600
   python run_analysis.py --full -o output_2017.coffea
 
-Output is saved as a pickle in the output/ directory: by default a dict of merged physics groups
-(data, DYJets, ZJets, WJets, Top, STop, DIBOSON, SMH, plus signal_mA600_ma*_mchi1 keys) -> accumulator.
-Use --per-dataset for one entry per YAML dataset (legacy). Load in a notebook from
-output/output_2017.pkl or output/output_2017_full.pkl.
+Output is saved as a pickle in the output/ directory.
+- Default (merged output): structured bundle with ``metadata`` and ``samples``.
+- ``--per-dataset``: legacy per-dataset accumulator dict (used for Condor shards).
+Load in a notebook from output/output_2017.pkl or output/output_2017_full.pkl.
 """
 
 import argparse
@@ -82,6 +82,71 @@ def _load_full_dataset_meta() -> dict:
             "isData": bool(meta.get("isData", False)),
         }
     return out
+
+
+def _schema_sample_key(name: str) -> str:
+    """Map merged sample keys into schema-friendly names."""
+    n = str(name)
+    if n == "MET":
+        return "data_MET"
+    if n == "SingleElectron":
+        return "data_SingleElectron"
+    return n
+
+
+def _accumulator_to_schema_sample(acc) -> dict:
+    """
+    Convert legacy accumulator payload into:
+      {"cutflow": {...}, "hists_by_region": {...}, "hists": {...}}
+    """
+    sample = {}
+    cutflow = dict(acc.get("cutflow", {}))
+    sample["cutflow"] = cutflow
+
+    hists_by_region = {}
+    hists_other = {}
+    for key, value in acc.items():
+        if key == "cutflow":
+            continue
+        if hasattr(value, "_hist"):
+            if str(key).endswith("_by_region"):
+                hists_by_region[str(key)[:-10]] = value
+            else:
+                hists_other[str(key)] = value
+    if hists_by_region:
+        sample["hists_by_region"] = hists_by_region
+    if hists_other:
+        sample["hists"] = hists_other
+    return sample
+
+
+def _build_output_bundle(results: dict, year: int, lumi_fb: float) -> dict:
+    """Build structured output bundle with metadata + samples."""
+    samples = {}
+    for name, acc in results.items():
+        samples[_schema_sample_key(name)] = _accumulator_to_schema_sample(acc)
+
+    return {
+        "metadata": {
+            "year": int(year),
+            "lumi_fb": float(lumi_fb),
+            "normalized": True,
+            "normalization": "xsec*lumi/Ngen (MC), data=1",
+            "regions": ["sr", "zecr", "zmucr", "tecr", "tmucr"],
+            "data_stream_by_region": {
+                "sr": "MET",
+                "zmucr": "MET",
+                "tmucr": "MET",
+                "zecr": "SingleElectron",
+                "tecr": "SingleElectron",
+            },
+            "binning": {
+                "recoil": [250, 300, 400, 550, 1000],
+                "cos_theta_star": [0.0, 0.25, 0.5, 0.75, 1.0],
+            },
+        },
+        "samples": samples,
+    }
 
 def main():
     parser = argparse.ArgumentParser(description="Run bbDM processor (one file or full)")
@@ -248,10 +313,14 @@ def main():
         outfile = os.path.join(SCRIPT_DIR, OUTPUT_DIR, outfile)
     os.makedirs(os.path.dirname(outfile), exist_ok=True)
 
+    to_save = results if args.per_dataset else _build_output_bundle(results, args.year, args.lumi_fb)
     with open(outfile, "wb") as f:
-        pickle.dump(results, f)
+        pickle.dump(to_save, f)
     print(f"Saved to {outfile}")
-    print(f"Load in a notebook: results = pickle.load(open('{outfile}','rb'))")
+    if args.per_dataset:
+        print(f"Load in a notebook: shard = pickle.load(open('{outfile}','rb'))")
+    else:
+        print(f"Load in a notebook: bundle = pickle.load(open('{outfile}','rb')); results = bundle['samples']")
 
 
 if __name__ == "__main__":
