@@ -24,7 +24,7 @@ from config.datasets_2017 import get_trigger_list
 NanoAODSchema.warn_missing_crossrefs = False
 
 
-def get_nanoevents(filepath, schemaclass=NanoAODSchema, max_entries=None):
+def get_nanoevents(filepath, schemaclass=NanoAODSchema, max_entries=None, treename="Events"):
     """
     Load one NanoAOD file and return events.
 
@@ -40,7 +40,17 @@ def get_nanoevents(filepath, schemaclass=NanoAODSchema, max_entries=None):
     kwargs = {"schemaclass": schemaclass}
     if max_entries is not None and int(max_entries) > 0:
         kwargs["entry_stop"] = int(max_entries)
-    return NanoEventsFactory.from_root(filepath, **kwargs).events()
+    # Uproot/Coffea combos can behave differently for remote ROOT files.
+    # Try specifying the tree explicitly to avoid ReadOnlyDirectory issues,
+    # but keep a safe fallback for older/newer coffea behaviors.
+    try:
+        return NanoEventsFactory.from_root(filepath, treepath=treename, **kwargs).events()
+    except Exception as e1:
+        # Only retry with dict form for the specific ReadOnlyDirectory/typenames-style failure.
+        msg = str(e1)
+        if "ReadOnlyDirectory" in msg or "typenames" in msg:
+            return NanoEventsFactory.from_root({filepath: treename}, **kwargs).events()
+        raise
 
 
 class HistAccumulator(processor.AccumulatorABC):
