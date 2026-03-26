@@ -28,7 +28,7 @@ bbDM_DAS_LongExercise/
 │   └── submit_condor.sub               # Condor submit for full analysis
 ├── processor/
 │   └── bbdm_processor.py               # Reusable Coffea processor
-├── run_analysis.py                      # full / one-file analysis; data uses golden JSON from config/ if present
+├── run_analysis.py                      # One-file or full run (--full)
 ├── datasets/
 │   └── dataset_guide.md                 # How to get NanoAOD samples
 ├── solutions/                           # Hints for the excercises
