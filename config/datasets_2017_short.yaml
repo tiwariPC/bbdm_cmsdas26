@@ -2,51 +2,156 @@
 # JHEP 02 (2025) 050 style: SR and CRs use preselection; SR = MC-only plots; data in CRs.
 # Instructors can edit paths or add/remove entries.
 
+triggers:
+  - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60
+  - HLT_PFMETNoMu120_PFMHTNoMu120_IDTight
+  - HLT_PFMETNoMu140_PFMHTNoMu140_IDTight
+  - HLT_Ele27_WPTight_Gsf
+  - HLT_Ele32_WPTight_Gsf_L1DoubleEG
+  - HLT_Ele32_WPTight_Gsf
+  - HLT_Ele35_WPTight_Gsf
+  - HLT_IsoMu24
+  - HLT_IsoMu27
+  - HLT_IsoTkMu27
+  - HLT_IsoTkMu24
+  - HLT_Photon200
+
+# Merged pickle output from run_analysis.py (default: merge ON; --per-dataset keeps one key per sample).
+# Keep merge_* in sync with datasets_2017_full.yaml. load_merge_config() reads BOTH YAMLs (full overrides short on conflicts).
+merge_groups: {}
+merge_prefix_rules:
+  - prefix: DYJetsToLL_M50_HT
+    group: DYJets
+  - prefix: ZJetsToNuNu_HT
+    group: ZJets
+  - prefix: WJetsToLNu_HT
+    group: WJets
+  - prefix: TT
+    group: Top
+  - prefix: ST_
+    group: STop
+  # Diboson (EOS / sample names often start WW_, WZ_, ZZ_)
+  - prefix: WW
+    group: DIBOSON
+  - prefix: WZ
+    group: DIBOSON
+  - prefix: ZZ
+    group: DIBOSON
+  # SMH: H→bb and associated production (longest prefixes first; matches YAML names & EOS dir names)
+  - prefix: ttHTobb_ttToSemiLep_M125
+    group: SMH
+  - prefix: ttHTobb_ttTo2L2Nu_M125
+    group: SMH
+  - prefix: WminusH_HToBB_WToQQ_M125
+    group: SMH
+  - prefix: WplusH_HToBB_WToLNu_M125
+    group: SMH
+  - prefix: ggZH_HToBB_ZToNuNu_M125
+    group: SMH
+  - prefix: ggZH_HToBB_ZToLL_M125
+    group: SMH
+  - prefix: ZH_HToBB_ZToNuNu_M125
+    group: SMH
+  - prefix: ZH_HToBB_ZToLL_M125
+    group: SMH
+  - prefix: ttHTobb_M125
+    group: SMH
+  - prefix: VBFHToBB_M-125
+    group: SMH
+  - prefix: VBFHToBB
+    group: SMH
+  - prefix: WminusH_HToBB
+    group: SMH
+  - prefix: ttHTobb
+    group: SMH
+
 data:
   - name: MET_Run2017B
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017B-02Apr2020-v1/00DCCA4E-F5F1-F84D-A6EC-2956ACAB6E02.root"
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017B-02Apr2020-v1/*.root"
+    nfiles: 3
     isData: true
     label: "Data MET 2017"
+  - name: SingleElectron_Run2017
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/SingleElectron-Run2017B-02Apr2020-v1/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/SingleElectron-Run2017C-02Apr2020-v1/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/SingleElectron-Run2017D-02Apr2020-v1/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/SingleElectron-Run2017E-02Apr2020-v1/*.root"
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/SingleElectron-Run2017F-02Apr2020-v1/*.root"
+    nfiles: 3
+    isData: true
+    label: "Data SingleElectron 2017"
 
 backgrounds:
   - name: DYJets
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/DYJetsToLL_M-50_HT-400to600_TuneCP5_13TeV-madgraphMLM-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/0288E440-0142-E811-8933-0CC47A7C3638.root"
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/DYJetsToLL_M-50_HT-400to600_TuneCP5_13TeV-madgraphMLM-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/*.root"
+    nfiles: 3
     isData: false
     label: "Z(ll)+jets "
     xsec: 6.982
   - name: ZJets
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-400To600_13TeV-madgraph-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/084C97E6-868F-E811-815E-FA163E3EF566.root"
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZJetsToNuNu_HT-400To600_13TeV-madgraph-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/*.root"
+    nfiles: 3
     isData: false
     label: "Z(#nu#nu)+jets "
     xsec: 13.11
   - name: WJets
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WJetsToLNu_HT-400To600_TuneCP5_13TeV-madgraphMLM-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/0209439B-D65A-E811-8708-A4BF01125A90.root"
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WJetsToLNu_HT-400To600_TuneCP5_13TeV-madgraphMLM-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/*.root"
+    nfiles: 3
     isData: false
     label: "W(l#nu)+jets "
     xsec: 57.91
   - name: DIBOSON
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WW_TuneCP5_13TeV-pythia8/2CBB934D-EA44-E811-AEA4-0CC47A4D7600.root"
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/WW_TuneCP5_13TeV-pythia8/*.root"
+    nfiles: 3
     isData: false
     label: "WW "
     xsec: 77.9187
   - name: STop
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ST_t-channel_top_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/1222E888-E643-E811-A547-002481DE4932.root"
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ST_t-channel_top_4f_inclusiveDecays_TuneCP5_13TeV-powhegV2-madspin-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/*.root"
+    nfiles: 3
     isData: false
     label: "Single t "
     xsec: 136.02
   - name: Top
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v2/0009B970-B9B0-E811-9F54-68B5996BD98E.root"
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/TTToSemiLeptonic_TuneCP5_PSweights_13TeV-powheg-pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v2/*.root"
+    nfiles: 3
     isData: false
     label: "t#bar{t} "
     xsec: 365.2482
   - name: SMH
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZH_HToBB_ZToLL_M125_13TeV_powheg_pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/227F86F4-6C41-E811-8145-0025904CF050.root"
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/ZH_HToBB_ZToLL_M125_13TeV_powheg_pythia8-RunIIFall17NanoAOD-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/*.root"
+    nfiles: 3
     isData: false
     label: "SMH "
     xsec: 0.07924
 
 signal:
   - name: bbDM_2HDMa_LO_5f
-    file: "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/bbDM_2HDMa_LO_5f_TuneCP3_13TeV_madgraph_pythia8/3FF7F0D3-424B-624F-97C4-00CD47D17C34.root"
+    files:
+      - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/bbDM_2HDMa_LO_5f_TuneCP3_13TeV_madgraph_pythia8/*.root"
+    nfiles: 3
     isData: false
     label: "bbDM (2HDM+a)"
+    # Per-masspoint cross sections (pb) for randomized signal branches:
+    #   signal_mA600_ma{ma}_mchi1  <-> GenModel_MH3_600_MH4_{ma}_Mchi_1
+    masspoint_xsec_pb:
+      ma_10_mA_600: 0.91120
+      ma_50_mA_600: 0.62520
+      ma_100_mA_600: 0.4232
+      ma_150_mA_600: 0.282800
+      ma_200_mA_600: 0.1880
+      ma_250_mA_600: 0.12550
+      ma_300_mA_600: 0.085840
+      ma_350_mA_600: 0.061830
+      ma_400_mA_600: 0.045220
+      ma_450_mA_600: 0.034210
+      ma_500_mA_600: 0.0257900

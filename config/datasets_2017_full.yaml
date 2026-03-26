@@ -1,16 +1,118 @@
+triggers:
+  - PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60
+  - PFMETNoMu120_PFMHTNoMu120_IDTight
+  - PFMETNoMu140_PFMHTNoMu140_IDTight
+  - Ele27_WPTight_Gsf
+  - Ele32_WPTight_Gsf_L1DoubleEG
+  - Ele32_WPTight_Gsf
+  - Ele35_WPTight_Gsf
+  - IsoMu24
+  - IsoMu27
+  - IsoTkMu27
+  - IsoTkMu24
+  - Photon200
+
+# --- Merged pickle output (run_analysis.py, default: merge ON; use --per-dataset for one key per sample)
+# All HT-binned DY/Z/W samples below map to a single DYJets / ZJets / WJets accumulator via prefix rules.
+# Override or extend here without editing Python:
+#   merge_groups:           # exact YAML "name" -> merged key
+#     WW: DIBOSON
+#   merge_prefix_rules:     # longest prefix wins first
+#     - prefix: "DYJetsToLL_M50_HT"
+#       group: DYJets
+# Per-dataset override on any entry: merge_as: DYJets
+merge_groups: {}
+merge_prefix_rules:
+  - prefix: DYJetsToLL_M50_HT
+    group: DYJets
+  - prefix: ZJetsToNuNu_HT
+    group: ZJets
+  - prefix: WJetsToLNu_HT
+    group: WJets
+  - prefix: TT
+    group: Top
+  - prefix: ST_
+    group: STop
+  # Diboson
+  - prefix: WW
+    group: DIBOSON
+  - prefix: WZ
+    group: DIBOSON
+  - prefix: ZZ
+    group: DIBOSON
+  # SMH (H→bb + associated production)
+  - prefix: ttHTobb_ttToSemiLep_M125
+    group: SMH
+  - prefix: ttHTobb_ttTo2L2Nu_M125
+    group: SMH
+  - prefix: WminusH_HToBB_WToQQ_M125
+    group: SMH
+  - prefix: WplusH_HToBB_WToLNu_M125
+    group: SMH
+  - prefix: ggZH_HToBB_ZToNuNu_M125
+    group: SMH
+  - prefix: ggZH_HToBB_ZToLL_M125
+    group: SMH
+  - prefix: ZH_HToBB_ZToNuNu_M125
+    group: SMH
+  - prefix: ZH_HToBB_ZToLL_M125
+    group: SMH
+  - prefix: ttHTobb_M125
+    group: SMH
+  - prefix: VBFHToBB_M-125
+    group: SMH
+  - prefix: VBFHToBB
+    group: SMH
+  - prefix: WminusH_HToBB
+    group: SMH
+  - prefix: ttHTobb
+    group: SMH
+
 data:
-  - name: MET_Run2017
+  - name: MET_Run2017B
     files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017B-02Apr2020-v1/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: true
+    label: "Data MET 2017B"
+
+  - name: MET_Run2017C
+    files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017C-02Apr2020-v1/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: true
+    label: "Data MET 2017C"
+
+  - name: MET_Run2017D
+    files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017D-02Apr2020-v1/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: true
+    label: "Data MET 2017D"
+
+  - name: MET_Run2017E
+    files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017E-02Apr2020-v1/*.root"
+    xsec: null
+    sumw: null
+    year: 2017
+    isData: true
+    label: "Data MET 2017E"
+
+  - name: MET_Run2017F
+    files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/MET-Run2017F-02Apr2020-v1/*.root"
     xsec: null
     sumw: null
     year: 2017
     isData: true
-    label: "Data MET 2017"
+    label: "Data MET 2017F"
 
 backgrounds:
   # DYJetsToLL HT-binned (xsec in pb)
@@ -385,6 +487,20 @@ signal:
     files:
       - "/eos/cms/store/group/phys_susy/sus-23-008/cmsdas2026/2017/bbDM_2HDMa_LO_5f_TuneCP3_13TeV_madgraph_pythia8/**/*.root"
     xsec: null
+    # Per-masspoint cross sections (pb) for randomized signal branches:
+    #   signal_mA600_ma{ma}_mchi1  <-> GenModel_MH3_600_MH4_{ma}_Mchi_1
+    masspoint_xsec_pb:
+      ma_10_mA_600: 0.91120
+      ma_50_mA_600: 0.62520
+      ma_100_mA_600: 0.4232
+      ma_150_mA_600: 0.282800
+      ma_200_mA_600: 0.1880
+      ma_250_mA_600: 0.12550
+      ma_300_mA_600: 0.085840
+      ma_350_mA_600: 0.061830
+      ma_400_mA_600: 0.045220
+      ma_450_mA_600: 0.034210
+      ma_500_mA_600: 0.0257900
     sumw: null
     year: 2017
     isData: false
