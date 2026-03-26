@@ -36,7 +36,11 @@ bbDM_DAS_LongExercise/
 ├── README.md                            # This file
 ```
 
-Clone this repository in your `/eos/user/<first letter of your username>/<username>/SWAN_projects/`
+Go to following EOS dir:
+```bash
+/eos/user/<first letter of your username>/<username>/SWAN_projects/
+```
+Clone the following repository
 ```bash
 git clone https://github.com/tiwariPC/bbdm_cmsdas26.git
 ```
