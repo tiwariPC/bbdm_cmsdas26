@@ -3,12 +3,12 @@ jmax *
 kmax *
 ------------
 bin sr
-observation 46771
+observation 48911
 ------------
 bin sr sr sr sr sr sr sr sr
 process signal_mA600_ma10_mchi1 DIBOSON DYJets SMH STop Top WJets ZJets
 process 0 1 2 3 4 5 6 7
-rate 0 225.60312 8.6382394 57.430449 361.30107 1754.6041 460.62345 1814.4632
+rate 796.44128 245.80006 8.6382394 57.354256 361.08442 1754.6041 481.40576 1781.0925
 ------------
 lumi lnN 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025
 sig_norm lnN 1.1 - - - - - - -

@@ -102,26 +102,21 @@ def _schema_sample_key(name: str) -> str:
 def _accumulator_to_schema_sample(acc) -> dict:
     """
     Convert legacy accumulator payload into:
-      {"cutflow": {...}, "hists_by_region": {...}, "hists": {...}}
+      {"cutflow": {...}, "hists_by_region": {...}}
     """
     sample = {}
     cutflow = dict(acc.get("cutflow", {}))
     sample["cutflow"] = cutflow
 
     hists_by_region = {}
-    hists_other = {}
     for key, value in acc.items():
         if key == "cutflow":
             continue
         if hasattr(value, "_hist"):
             if str(key).endswith("_by_region"):
                 hists_by_region[str(key)[:-10]] = value
-            else:
-                hists_other[str(key)] = value
     if hists_by_region:
         sample["hists_by_region"] = hists_by_region
-    if hists_other:
-        sample["hists"] = hists_other
     return sample
 
 

@@ -647,7 +647,17 @@ class bbDMProcessor(processor.ProcessorABC):
             )
 
         # ----- Signal region -----
-        sr = cut_recoil
+        # Define SR explicitly ONCE and reuse everywhere (SR histograms + region-wise filling).
+        sr_mask = (
+            (njets >= 2)
+            & (njets <= 3)
+            & (nbjets == 2)
+            & (nlep == 0)
+            & (min_dphi > 0.5)
+            & met_pf_calo_ok
+            & (recoil_all > self.recoil_min)
+        )
+        sr = sr_mask
         w_sr = weight[sr]
         out["cutflow"]["signal_region"] += int(ak.sum(sr))
         out["recoil"].fill(recoil=ak.to_numpy(recoil_all[sr]), weight=ak.to_numpy(ak.fill_none(w_sr, 1.0)))
@@ -775,12 +785,66 @@ class bbDMProcessor(processor.ProcessorABC):
         out["cutflow"]["tmucr_nbjet"] += int(ak.sum(tmucr_nb))
         out["cutflow"]["tmucr_nnonb"] += int(ak.sum(tmucr_nnonb))
 
+        # ---------------------------------------------------------------------
+        # Region masks used for region-aware histograms
+        #
+        # IMPORTANT: define each region explicitly here, so region-wise histograms
+        # cannot be contaminated by events failing that region's full selection.
+        # ---------------------------------------------------------------------
+        zecr_mask = (
+            (njets >= 1)
+            & (lead_jet_pt > LEAD_JET_PT_MIN_CR)
+            & (min_dphi > 0.5)
+            & met_pf_calo_ok_z
+            & (recoil_z > RECOIL_MIN)
+            & two_ee
+            & (lead_lep_pt_z > LEAD_LEP_PT_CR)
+            & (mll_ee > Z_CR_MLL_LO)
+            & (mll_ee < Z_CR_MLL_HI)
+        )
+        zmucr_mask = (
+            (njets >= 1)
+            & (lead_jet_pt > LEAD_JET_PT_MIN_CR)
+            & (min_dphi > 0.5)
+            & met_pf_calo_ok_z
+            & (recoil_z > RECOIL_MIN)
+            & two_mumu
+            & (lead_lep_pt_z > LEAD_LEP_PT_CR)
+            & (mll_mumu > Z_CR_MLL_LO)
+            & (mll_mumu < Z_CR_MLL_HI)
+        )
+
+        tecr_mask = (
+            (njets >= 1)
+            & (lead_jet_pt > LEAD_JET_PT_MIN_CR)
+            & (min_dphi > 0.5)
+            & met_pf_calo_ok_t
+            & (recoil_t > RECOIL_MIN)
+            & one_ele
+            & (lep_pt_t > LEAD_LEP_PT_CR)
+            & (mt < TOP_CR_MT_MAX)
+            & (nbjets == 2)
+            & (n_non_b >= 2)
+        )
+        tmucr_mask = (
+            (njets >= 1)
+            & (lead_jet_pt > LEAD_JET_PT_MIN_CR)
+            & (min_dphi > 0.5)
+            & met_pf_calo_ok_t
+            & (recoil_t > RECOIL_MIN)
+            & one_mu
+            & (lep_pt_t > LEAD_LEP_PT_CR)
+            & (mt < TOP_CR_MT_MAX)
+            & (nbjets == 2)
+            & (n_non_b >= 2)
+        )
+
         region_masks = {
-            "sr": sr,
-            "zecr": zecr,
-            "zmucr": zmucr,
-            "tecr": tecr,
-            "tmucr": tmucr,
+            "sr": sr_mask,
+            "zecr": zecr_mask,
+            "zmucr": zmucr_mask,
+            "tecr": tecr_mask,
+            "tmucr": tmucr_mask,
         }
         region_recoil = {
             "sr": recoil_all,
