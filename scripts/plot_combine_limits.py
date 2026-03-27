@@ -12,6 +12,8 @@ from typing import List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+import mplhep as hep
+hep.style.use("CMS")
 import uproot
 
 
@@ -85,29 +87,83 @@ def main() -> None:
         rows.append((mA, ma, label, vals))
 
     rows = sorted(rows, key=_sort_key)
-    x = np.arange(len(rows), dtype=float)
-    labels = [r[2] for r in rows]
+    ma_values = np.array([r[1] for r in rows], dtype=float)
     exp = np.array([r[3]["exp"] for r in rows], dtype=float)
     e1dn = np.array([r[3]["exp1dn"] for r in rows], dtype=float)
     e1up = np.array([r[3]["exp1up"] for r in rows], dtype=float)
     e2dn = np.array([r[3]["exp2dn"] for r in rows], dtype=float)
     e2up = np.array([r[3]["exp2up"] for r in rows], dtype=float)
     obs = np.array([r[3]["obs"] for r in rows], dtype=float)
+    fig, ax = plt.subplots(figsize=(8, 8))
+    hep.cms.label("", lumi=41.5, loc=0, llabel="", fontsize=20, ax=ax)
 
-    fig, ax = plt.subplots(figsize=(max(8.0, 1.2 * len(rows)), 5.8))
-    ax.fill_between(x, e2dn, e2up, color="#ffeb3b", alpha=0.9, label="Expected ±2σ")
-    ax.fill_between(x, e1dn, e1up, color="#4caf50", alpha=0.9, label="Expected ±1σ")
-    ax.plot(x, exp, "--", color="black", linewidth=1.8, label="Expected")
+    fil_2sigma = ax.fill_between(
+        ma_values, e2dn, e2up, alpha=0.9, color="#F5BB54", label=r"95$\%$ expected"
+    )
+    fil_1sigma = ax.fill_between(
+        ma_values, e1dn, e1up, alpha=0.9, color="#607641", label=r"68$\%$ expected"
+    )
+    line_med = ax.plot(
+        ma_values, exp, linestyle="dashed", color="black", linewidth=1.8, label="Median expected"
+    )
+
+    line_obs = None
     if args.show_observed and np.any(np.isfinite(obs)):
-        ax.plot(x, obs, "-", color="black", linewidth=1.6, label="Observed")
+        line_obs = ax.plot(ma_values, obs, linestyle="solid", color="black", linewidth=2, label="Observed")
 
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=35, ha="right")
-    ax.set_ylabel("95% CL upper limit on signal strength μ")
-    ax.set_xlabel("Signal mass point")
+    ax.axhline(y=1.0, color="red", linestyle="-.", alpha=0.7, linewidth=1.8)
+
+    ax.set_xlim(50, 500)
     ax.set_yscale("log")
-    ax.grid(alpha=0.2, axis="y")
-    ax.legend(loc="best", frameon=False)
+    ax.set_ylim(0.1, 1000)
+    ticks_x = [50, 100, 200, 300, 400, 500]
+    ax.set_xticks(ticks_x)
+    ax.set_xticklabels(ticks_x, fontsize=20)
+    ax.tick_params(axis="y", labelsize=24)
+
+    ticks_y = [0.1, 1, 10, 20, 30, 100, 200, 1000]
+    tick_labels = [
+        r"$10^{-1}$",
+        r"$1$",
+        r"$10$",
+        r"$20$",
+        r"$30$",
+        r"$10^{2}$",
+        r"$2 \times 10^{2}$",
+        r"$10^{3}$",
+    ]
+    ax.yaxis.set_major_locator(plt.FixedLocator(ticks_y))
+    ax.set_yticklabels(tick_labels)
+
+    ax.set_xlabel(r"$\mathit{m}_{\mathsf{a}}$ (GeV)", usetex=True)
+    ax.set_ylabel(
+        r"$\mathsf{95\% CL\hspace{0.3cm}\sigma(pp\rightarrow b\bar{b}\chi\bar{\chi})}$(fb)",
+        labelpad=0.2,
+        usetex=True,
+    )
+
+    heading = "2HDM+a"
+    body = "\n".join(
+        (
+            r"",
+            r"$\mathsf{b\bar{b}+p_T^{miss}}$",
+            r"$\mathit{m}_{\mathsf{A}}$ = 600 GeV",
+            r"$\mathit{m}_{\chi}$ = 1 GeV",
+            r"tan$\beta$ = 35",
+            r"sin$\theta$ = 0.7",
+        )
+    )
+    ax.text(0.030, 0.92, heading, transform=ax.transAxes, fontsize=22)
+    ax.text(0.045, 0.67, body, transform=ax.transAxes, fontsize=20, usetex=True)
+
+    legend_handles = []
+    if line_obs is not None:
+        legend_handles.append(line_obs[0])
+    legend_handles.append(line_med[0])
+    legend_handles.extend([fil_1sigma, fil_2sigma])
+    ax.legend(
+        handles=legend_handles, frameon=False, fancybox=True, fontsize=20, loc="upper right"
+    )
     fig.tight_layout()
 
     out = Path(args.output)

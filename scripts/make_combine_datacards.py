@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Build simple counting datacards for CMS Combine from a bbDM output pickle.
+Build binned datacards for CMS Combine from a bbDM output pickle.
 
-This uses SR recoil yields (sum of bins) and writes one datacard per signal
-mass point found in the pickle.
+This uses per-bin SR yields of the chosen observable (default: cos_theta_star)
+and writes one datacard per signal mass point found in the pickle.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import os
 import pickle
 import sys
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 
 def _ensure_repo_on_syspath() -> None:
@@ -98,63 +98,106 @@ def _yield_from_hist(hist_obj, region: str = "sr") -> float:
     return float(vals.sum()) if hasattr(vals, "sum") else float(sum(vals))
 
 
-def _pick_data_observation(samples: Dict, region: str) -> Optional[float]:
+def _yields_by_bin_from_hist(hist_obj, region: str = "sr") -> list[float]:
+    if hist_obj is None:
+        return []
+    h = hist_obj
+    try:
+        if any(getattr(ax, "name", None) == "region" for ax in h.axes):
+            h = h[{"region": region}]
+    except Exception:
+        pass
+    vals = h.values()
+    arr = vals.tolist() if hasattr(vals, "tolist") else list(vals)
+    return [float(max(0.0, v)) for v in arr]
+
+
+def _pick_data_observation(samples: Dict, hist_key: str, region: str) -> Optional[list[float]]:
     # Prefer data_MET for SR, then any data-like key.
     preferred = ["data_MET", "MET_Run2017", "MET"]
     keys = list(samples.keys())
     for k in preferred:
         if k in keys:
-            return _yield_from_hist(_extract_hist(samples, k, "recoil"), region=region)
+            return _yields_by_bin_from_hist(_extract_hist(samples, k, hist_key), region=region)
     for k in keys:
         if _is_data(k):
-            return _yield_from_hist(_extract_hist(samples, k, "recoil"), region=region)
+            return _yields_by_bin_from_hist(_extract_hist(samples, k, hist_key), region=region)
     return None
 
 
 def _build_datacard_text(
     signal_name: str,
-    signal_rate: float,
-    bkg_rates: Dict[str, float],
-    observation: float,
+    signal_rates: list[float],
+    bkg_rates: Dict[str, list[float]],
+    observation: list[float],
     lumi_rel_unc: float,
     sig_norm_rel_unc: float,
     bkg_norm_rel_unc_by_proc: Dict[str, float],
 ) -> str:
-    processes = [signal_name] + list(bkg_rates.keys())
-    rates = [signal_rate] + [bkg_rates[p] for p in bkg_rates]
+    nbins = len(signal_rates)
+    if nbins == 0:
+        raise RuntimeError("Signal histogram has zero bins after region projection.")
+    if len(observation) != nbins:
+        raise RuntimeError("Data observation bin count does not match signal bin count.")
+    for bkg, vals in bkg_rates.items():
+        if len(vals) != nbins:
+            raise RuntimeError(f"Background '{bkg}' bin count does not match signal bin count.")
 
-    proc_ids = [0] + list(range(1, len(processes)))
-    obs_int = int(round(max(0.0, observation)))
+    proc_names = [signal_name] + list(bkg_rates.keys())
+    proc_ids = [0] + list(range(1, len(proc_names)))
+    bin_names = [f"sr_bin{i+1}" for i in range(nbins)]
+
+    card_bins = []
+    card_proc_names = []
+    card_proc_ids = []
+    card_rates = []
+    for ib in range(nbins):
+        for ip, pname in enumerate(proc_names):
+            card_bins.append(bin_names[ib])
+            card_proc_names.append(pname)
+            card_proc_ids.append(str(proc_ids[ip]))
+            if ip == 0:
+                card_rates.append(f"{max(0.0, signal_rates[ib]):.8g}")
+            else:
+                card_rates.append(f"{max(0.0, bkg_rates[pname][ib]):.8g}")
+
+    obs_ints = [str(int(round(max(0.0, v)))) for v in observation]
 
     lines = []
-    lines.append("imax 1")
+    lines.append(f"imax {nbins}")
     lines.append("jmax *")
     lines.append("kmax *")
     lines.append("------------")
-    lines.append("bin sr")
-    lines.append(f"observation {obs_int}")
+    lines.append("bin " + " ".join(bin_names))
+    lines.append("observation " + " ".join(obs_ints))
     lines.append("------------")
-    lines.append("bin " + " ".join(["sr"] * len(processes)))
-    lines.append("process " + " ".join(processes))
-    lines.append("process " + " ".join(str(x) for x in proc_ids))
-    lines.append("rate " + " ".join(f"{max(0.0, r):.8g}" for r in rates))
+    lines.append("bin " + " ".join(card_bins))
+    lines.append("process " + " ".join(card_proc_names))
+    lines.append("process " + " ".join(card_proc_ids))
+    lines.append("rate " + " ".join(card_rates))
     lines.append("------------")
 
     # Common lumi uncertainty on all MC components (signal + bkgs).
     lumi_factor = 1.0 + float(lumi_rel_unc)
-    lines.append("lumi lnN " + " ".join([f"{lumi_factor:.6g}"] * len(processes)))
+    lines.append("lumi lnN " + " ".join([f"{lumi_factor:.6g}"] * len(card_rates)))
 
     # Signal normalization nuisance.
     sig_factor = 1.0 + float(sig_norm_rel_unc)
-    sig_row = [f"{sig_factor:.6g}"] + ["-"] * (len(processes) - 1)
+    sig_row = []
+    for _ in range(nbins):
+        sig_row.append(f"{sig_factor:.6g}")
+        sig_row.extend(["-"] * (len(proc_names) - 1))
     lines.append("sig_norm lnN " + " ".join(sig_row))
 
     # Per-background normalization nuisances.
-    for ib, bkg in enumerate(bkg_rates.keys(), start=1):
+    for ibkg, bkg in enumerate(bkg_rates.keys(), start=1):
         rel = float(bkg_norm_rel_unc_by_proc.get(bkg, 0.10))
         fac = 1.0 + rel
-        row = ["-"] * len(processes)
-        row[ib] = f"{fac:.6g}"
+        row = []
+        for _ in range(nbins):
+            per_bin_row = ["-"] * len(proc_names)
+            per_bin_row[ibkg] = f"{fac:.6g}"
+            row.extend(per_bin_row)
         lines.append(f"norm_{bkg} lnN " + " ".join(row))
 
     return "\n".join(lines) + "\n"
@@ -192,22 +235,35 @@ def build_cards(
     if not bkg_names:
         raise RuntimeError("No background samples found in pickle.")
 
-    bkg_rates = {
-        b: max(0.0, _yield_from_hist(_extract_hist(samples, b, hist_key), region=region))
-        for b in bkg_names
-    }
-    observation = _pick_data_observation(samples, region=region)
+    bkg_rates = {b: _yields_by_bin_from_hist(_extract_hist(samples, b, hist_key), region=region) for b in bkg_names}
+    observation = _pick_data_observation(samples, hist_key=hist_key, region=region)
     if observation is None:
-        observation = sum(bkg_rates.values())
+        if bkg_rates:
+            nbins = len(next(iter(bkg_rates.values())))
+            observation = [0.0] * nbins
+            for vals in bkg_rates.values():
+                for i, v in enumerate(vals):
+                    observation[i] += v
+        else:
+            observation = []
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
     count = 0
     for s in sorted(signal_names):
-        srate = max(0.0, _yield_from_hist(_extract_hist(samples, s, hist_key), region=region))
+        srates = _yields_by_bin_from_hist(_extract_hist(samples, s, hist_key), region=region)
+        if len(srates) == 0:
+            raise RuntimeError(
+                f"Signal '{s}' has no histogram bins for hist_key='{hist_key}' in region='{region}'."
+            )
+        if sum(srates) <= 0.0:
+            raise RuntimeError(
+                f"Signal '{s}' has zero total yield for hist_key='{hist_key}' in region='{region}'. "
+                "Check that this observable is filled for signal in the input pickle."
+            )
         text = _build_datacard_text(
             signal_name=s,
-            signal_rate=srate,
+            signal_rates=srates,
             bkg_rates=bkg_rates,
             observation=observation,
             lumi_rel_unc=lumi_rel_unc,
@@ -249,7 +305,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Build simple Combine datacards from bbDM pickle output.")
     ap.add_argument("--input", required=True, help="Path to output pickle (e.g. output/output_2017_full.pkl)")
     ap.add_argument("--output-dir", default="output/combine_cards", help="Directory to write datacards and combine outputs")
-    ap.add_argument("--hist-key", default="recoil", help="Histogram key to use for rates (default: recoil)")
+    ap.add_argument(
+        "--hist-key",
+        default="cos_theta_star",
+        help="Histogram key to use for rates and data observation (default: cos_theta_star)",
+    )
     ap.add_argument("--region", default="sr", help="Region category to project (default: sr)")
     args = ap.parse_args()
 

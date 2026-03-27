@@ -240,7 +240,20 @@ def min_dphi_jets_met(jets, met_phi):
 
 def count_bjets(jets, wp=BTAG_WP_MEDIUM):
     """Count jets passing b-tag working point (DeepFlavB)."""
-    return ak.sum(jets.btagDeepFlavB > wp, axis=1)
+    # Some NanoAOD files carry missing DeepFlav values. Treat them as "not b-tagged"
+    # so event masks stay strictly boolean instead of becoming option masks.
+    tagged = ak.fill_none(jets.btagDeepFlavB > wp, False)
+    return ak.sum(tagged, axis=1)
+
+
+def _bool_mask(*conditions):
+    """Combine selection clauses into a pure boolean event mask."""
+    if not conditions:
+        raise ValueError("_bool_mask requires at least one condition")
+    mask = ak.fill_none(conditions[0], False)
+    for cond in conditions[1:]:
+        mask = mask & ak.fill_none(cond, False)
+    return ak.fill_none(mask, False)
 
 
 def select_tight_electrons(events):
@@ -537,9 +550,25 @@ class bbDMProcessor(processor.ProcessorABC):
         # Optional signal masspoint filter for randomized-signal files.
         # If the requested branch is absent in this chunk/file, return empty output safely.
         if self.signal_mass_branch:
-            if self.signal_mass_branch not in events.fields:
+            # Match Session 3 split method: read masspoint flags from GenModel when available.
+            gm_fields = (
+                set(events.GenModel.fields)
+                if hasattr(events, "GenModel") and hasattr(events.GenModel, "fields")
+                else set()
+            )
+            gm_name = str(self.signal_mass_branch)
+            gm_name_alt = gm_name[len("GenModel_") :] if gm_name.startswith("GenModel_") else gm_name
+            if gm_name in gm_fields:
+                mass_flag = events.GenModel[gm_name]
+            elif gm_name_alt in gm_fields:
+                # NanoEvents GenModel subfields are typically exposed without the "GenModel_" prefix.
+                mass_flag = events.GenModel[gm_name_alt]
+            elif self.signal_mass_branch in events.fields:
+                # Backward-compatible fallback for flat branch layouts.
+                mass_flag = events[self.signal_mass_branch]
+            else:
                 return out
-            mass_mask = events[self.signal_mass_branch] > 0
+            mass_mask = ak.fill_none(mass_flag != 0, False)
             n_mass = int(ak.sum(mass_mask))
             out["cutflow"]["masspoint"] += n_mass
             if n_mass == 0:
@@ -600,12 +629,12 @@ class bbDMProcessor(processor.ProcessorABC):
 
         # ----- Cumulative cutflow -----
         # SR jet phase space: exactly 2-3 jets and exactly 2 b-jets.
-        cut_njet = (njets >= 2) & (njets <= 3)
-        cut_nbjet = cut_njet & (nbjets == 2)
-        cut_lepveto = cut_nbjet & (nlep == 0)
-        cut_min_dphi = cut_lepveto & (min_dphi > 0.5)
-        cut_met_pf_calo = cut_min_dphi & met_pf_calo_ok
-        cut_recoil = cut_met_pf_calo & (recoil_all > self.recoil_min)
+        cut_njet = _bool_mask((njets >= 2), (njets <= 3))
+        cut_nbjet = _bool_mask(cut_njet, (nbjets == 2))
+        cut_lepveto = _bool_mask(cut_nbjet, (nlep == 0))
+        cut_min_dphi = _bool_mask(cut_lepveto, (min_dphi > 0.5))
+        cut_met_pf_calo = _bool_mask(cut_min_dphi, met_pf_calo_ok)
+        cut_recoil = _bool_mask(cut_met_pf_calo, (recoil_all > self.recoil_min))
 
         # Keep legacy keys for backward compatibility and add explicit SR keys.
         out["cutflow"]["njet_ge1"] += int(ak.sum(cut_njet))
@@ -699,7 +728,13 @@ class bbDMProcessor(processor.ProcessorABC):
         )
         recoil_z = recoil_pt(met, met_phi, sum_lep_px_z, sum_lep_py_z)
         met_pf_calo_ok_z = met_pf_calo_mask(events, mode="cr", sum_lep_px=sum_lep_px_z, sum_lep_py=sum_lep_py_z)
-        presel_z = (njets >= 1) & (lead_jet_pt > LEAD_JET_PT_MIN_CR) & (min_dphi > 0.5) & met_pf_calo_ok_z & (recoil_z > RECOIL_MIN)
+        presel_z = _bool_mask(
+            (njets >= 1),
+            (lead_jet_pt > LEAD_JET_PT_MIN_CR),
+            (min_dphi > 0.5),
+            met_pf_calo_ok_z,
+            (recoil_z > RECOIL_MIN),
+        )
         mll_ee = ak.where(two_ee, ak.fill_none(pair_ee.mass, -1.0), ak.full_like(met, -1.0))
         mll_mumu = ak.where(two_mumu, ak.fill_none(pair_mumu.mass, -1.0), ak.full_like(met, -1.0))
         lead_lep_pt_z = ak.where(
@@ -707,14 +742,14 @@ class bbDMProcessor(processor.ProcessorABC):
             ak.max(tight_ele.pt, axis=1),
             ak.where(two_mumu, ak.max(tight_mu.pt, axis=1), ak.full_like(met, 0.0)),
         )
-        zecr = presel_z & two_ee & (lead_lep_pt_z > LEAD_LEP_PT_CR) & (mll_ee > Z_CR_MLL_LO) & (mll_ee < Z_CR_MLL_HI)
-        zmucr = presel_z & two_mumu & (lead_lep_pt_z > LEAD_LEP_PT_CR) & (mll_mumu > Z_CR_MLL_LO) & (mll_mumu < Z_CR_MLL_HI)
-        zecr_twolep = presel_z & two_ee
-        zecr_leadlep = zecr_twolep & (lead_lep_pt_z > LEAD_LEP_PT_CR)
-        zecr_mll = zecr_leadlep & (mll_ee > Z_CR_MLL_LO) & (mll_ee < Z_CR_MLL_HI)
-        zmucr_twolep = presel_z & two_mumu
-        zmucr_leadlep = zmucr_twolep & (lead_lep_pt_z > LEAD_LEP_PT_CR)
-        zmucr_mll = zmucr_leadlep & (mll_mumu > Z_CR_MLL_LO) & (mll_mumu < Z_CR_MLL_HI)
+        zecr = _bool_mask(presel_z, two_ee, (lead_lep_pt_z > LEAD_LEP_PT_CR), (mll_ee > Z_CR_MLL_LO), (mll_ee < Z_CR_MLL_HI))
+        zmucr = _bool_mask(presel_z, two_mumu, (lead_lep_pt_z > LEAD_LEP_PT_CR), (mll_mumu > Z_CR_MLL_LO), (mll_mumu < Z_CR_MLL_HI))
+        zecr_twolep = _bool_mask(presel_z, two_ee)
+        zecr_leadlep = _bool_mask(zecr_twolep, (lead_lep_pt_z > LEAD_LEP_PT_CR))
+        zecr_mll = _bool_mask(zecr_leadlep, (mll_ee > Z_CR_MLL_LO), (mll_ee < Z_CR_MLL_HI))
+        zmucr_twolep = _bool_mask(presel_z, two_mumu)
+        zmucr_leadlep = _bool_mask(zmucr_twolep, (lead_lep_pt_z > LEAD_LEP_PT_CR))
+        zmucr_mll = _bool_mask(zmucr_leadlep, (mll_mumu > Z_CR_MLL_LO), (mll_mumu < Z_CR_MLL_HI))
 
         # Top control regions (single tight lepton)
         one_ele = (nele_t == 1) & (nmu_t == 0)
@@ -731,24 +766,30 @@ class bbDMProcessor(processor.ProcessorABC):
         sum_lep_py_t = lep_pt_t * np.sin(lep_phi_t)
         recoil_t = recoil_pt(met, met_phi, sum_lep_px_t, sum_lep_py_t)
         met_pf_calo_ok_t = met_pf_calo_mask(events, mode="cr", sum_lep_px=sum_lep_px_t, sum_lep_py=sum_lep_py_t)
-        presel_t = (njets >= 1) & (lead_jet_pt > LEAD_JET_PT_MIN_CR) & (min_dphi > 0.5) & met_pf_calo_ok_t & (recoil_t > RECOIL_MIN)
+        presel_t = _bool_mask(
+            (njets >= 1),
+            (lead_jet_pt > LEAD_JET_PT_MIN_CR),
+            (min_dphi > 0.5),
+            met_pf_calo_ok_t,
+            (recoil_t > RECOIL_MIN),
+        )
         dphi_lep_met = np.abs(ak.to_numpy(met_phi) - ak.to_numpy(lep_phi_t))
         dphi_lep_met = np.where(dphi_lep_met > np.pi, 2 * np.pi - dphi_lep_met, dphi_lep_met)
         mt = ak.Array(np.sqrt(2.0 * ak.to_numpy(met) * ak.to_numpy(lep_pt_t) * (1.0 - np.cos(dphi_lep_met))))
         n_non_b = njets - nbjets
-        common_t = presel_t & (lep_pt_t > LEAD_LEP_PT_CR) & (mt < TOP_CR_MT_MAX) & (nbjets == 2) & (n_non_b >= 2)
-        tecr = common_t & one_ele
-        tmucr = common_t & one_mu
-        tecr_onelep = presel_t & one_ele
-        tecr_leppt = tecr_onelep & (lep_pt_t > LEAD_LEP_PT_CR)
-        tecr_mt = tecr_leppt & (mt < TOP_CR_MT_MAX)
-        tecr_nb = tecr_mt & (nbjets == 2)
-        tecr_nnonb = tecr_nb & (n_non_b >= 2)
-        tmucr_onelep = presel_t & one_mu
-        tmucr_leppt = tmucr_onelep & (lep_pt_t > LEAD_LEP_PT_CR)
-        tmucr_mt = tmucr_leppt & (mt < TOP_CR_MT_MAX)
-        tmucr_nb = tmucr_mt & (nbjets == 2)
-        tmucr_nnonb = tmucr_nb & (n_non_b >= 2)
+        common_t = _bool_mask(presel_t, (lep_pt_t > LEAD_LEP_PT_CR), (mt < TOP_CR_MT_MAX), (nbjets == 2), (n_non_b >= 2))
+        tecr = _bool_mask(common_t, one_ele)
+        tmucr = _bool_mask(common_t, one_mu)
+        tecr_onelep = _bool_mask(presel_t, one_ele)
+        tecr_leppt = _bool_mask(tecr_onelep, (lep_pt_t > LEAD_LEP_PT_CR))
+        tecr_mt = _bool_mask(tecr_leppt, (mt < TOP_CR_MT_MAX))
+        tecr_nb = _bool_mask(tecr_mt, (nbjets == 2))
+        tecr_nnonb = _bool_mask(tecr_nb, (n_non_b >= 2))
+        tmucr_onelep = _bool_mask(presel_t, one_mu)
+        tmucr_leppt = _bool_mask(tmucr_onelep, (lep_pt_t > LEAD_LEP_PT_CR))
+        tmucr_mt = _bool_mask(tmucr_leppt, (mt < TOP_CR_MT_MAX))
+        tmucr_nb = _bool_mask(tmucr_mt, (nbjets == 2))
+        tmucr_nnonb = _bool_mask(tmucr_nb, (n_non_b >= 2))
 
         out["cutflow"]["zecr"] += int(ak.sum(zecr))
         out["cutflow"]["zmucr"] += int(ak.sum(zmucr))

@@ -74,19 +74,14 @@ def _accumulator_to_schema_sample(acc) -> Dict[str, Any]:
     sample: Dict[str, Any] = {}
     sample["cutflow"] = dict(acc.get("cutflow", {}))
     hists_by_region: Dict[str, Any] = {}
-    hists_other: Dict[str, Any] = {}
     for key, value in acc.items():
         if key == "cutflow":
             continue
         if hasattr(value, "_hist"):
             if str(key).endswith("_by_region"):
                 hists_by_region[str(key)[:-10]] = value
-            else:
-                hists_other[str(key)] = value
     if hists_by_region:
         sample["hists_by_region"] = hists_by_region
-    if hists_other:
-        sample["hists"] = hists_other
     return sample
 
 
