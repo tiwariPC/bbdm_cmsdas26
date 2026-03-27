@@ -1,21 +1,21 @@
-imax 1
+imax 4
 jmax *
 kmax *
 ------------
-bin sr
-observation 48911
+bin sr_bin1 sr_bin2 sr_bin3 sr_bin4
+observation 1767 1480 1091 762
 ------------
-bin sr sr sr sr sr sr sr sr
-process signal_mA600_ma500_mchi1 DIBOSON DYJets SMH STop Top WJets ZJets
-process 0 1 2 3 4 5 6 7
-rate 73.041068 245.80006 8.6382394 57.354256 361.08442 1754.6041 481.40576 1781.0925
+bin sr_bin1 sr_bin1 sr_bin1 sr_bin1 sr_bin1 sr_bin1 sr_bin1 sr_bin1 sr_bin2 sr_bin2 sr_bin2 sr_bin2 sr_bin2 sr_bin2 sr_bin2 sr_bin2 sr_bin3 sr_bin3 sr_bin3 sr_bin3 sr_bin3 sr_bin3 sr_bin3 sr_bin3 sr_bin4 sr_bin4 sr_bin4 sr_bin4 sr_bin4 sr_bin4 sr_bin4 sr_bin4
+process signal_mA600_ma500_mchi1 DIBOSON DYJets SMH STop Top WJets ZJets signal_mA600_ma500_mchi1 DIBOSON DYJets SMH STop Top WJets ZJets signal_mA600_ma500_mchi1 DIBOSON DYJets SMH STop Top WJets ZJets signal_mA600_ma500_mchi1 DIBOSON DYJets SMH STop Top WJets ZJets
+process 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+rate 12.483609 83.733054 2.057161 28.011141 110.34303 756.01186 181.26915 525.35296 15.778617 45.153505 3.1568118 23.466723 104.8766 600.84946 129.70302 504.21253 20.25858 15.792078 1.830398 3.8587789 76.416311 272.71567 91.258761 429.44357 22.888349 10.27062 1.6066534 1.6946383 69.656971 125.08153 57.785611 317.58587
 ------------
-lumi lnN 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025
-sig_norm lnN 1.1 - - - - - - -
-norm_DIBOSON lnN - 1.12 - - - - - -
-norm_DYJets lnN - - 1.1 - - - - -
-norm_SMH lnN - - - 1.15 - - - -
-norm_STop lnN - - - - 1.08 - - -
-norm_Top lnN - - - - - 1.08 - -
-norm_WJets lnN - - - - - - 1.1 -
-norm_ZJets lnN - - - - - - - 1.1
+lumi lnN 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025 1.025
+sig_norm lnN 1.1 - - - - - - - 1.1 - - - - - - - 1.1 - - - - - - - 1.1 - - - - - - -
+norm_DIBOSON lnN - 1.12 - - - - - - - 1.12 - - - - - - - 1.12 - - - - - - - 1.12 - - - - - -
+norm_DYJets lnN - - 1.1 - - - - - - - 1.1 - - - - - - - 1.1 - - - - - - - 1.1 - - - - -
+norm_SMH lnN - - - 1.15 - - - - - - - 1.15 - - - - - - - 1.15 - - - - - - - 1.15 - - - -
+norm_STop lnN - - - - 1.08 - - - - - - - 1.08 - - - - - - - 1.08 - - - - - - - 1.08 - - -
+norm_Top lnN - - - - - 1.08 - - - - - - - 1.08 - - - - - - - 1.08 - - - - - - - 1.08 - -
+norm_WJets lnN - - - - - - 1.1 - - - - - - - 1.1 - - - - - - - 1.1 - - - - - - - 1.1 -
+norm_ZJets lnN - - - - - - - 1.1 - - - - - - - 1.1 - - - - - - - 1.1 - - - - - - - 1.1
